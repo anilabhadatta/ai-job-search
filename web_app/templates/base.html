@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Job Search | India & Global Tech{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // Global configuration for URL context
+        window.APP_CONFIG = {
+            urlPrefix: "{{ url_prefix }}"
+        };
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+
+    <!-- Navbar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('main.index') }}" class="flex items-center space-x-2 text-emerald-400 hover:text-emerald-300 font-bold text-xl tracking-tight transition">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/10">
+                            <i data-lucide="sparkles" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-white">AI Job Search</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">India & Global</span>
+                    </a>
+                </div>
+
+                <nav class="flex items-center space-x-2 sm:space-x-4">
+                    <a href="{{ url_for('main.index') }}" class="px-3 py-1.5 rounded-lg text-sm font-medium transition {% if request.endpoint == 'main.index' %}bg-slate-800 text-emerald-400 border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-850{% endif %}">
+                        <i data-lucide="upload" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Upload CV
+                    </a>
+
+                    {% if session.get('candidate') %}
+                    <a href="{{ url_for('main.results') }}" class="px-3 py-1.5 rounded-lg text-sm font-medium transition {% if request.endpoint == 'main.results' %}bg-slate-800 text-emerald-400 border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-850{% endif %}">
+                        <i data-lucide="compass" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Matches
+                    </a>
+                    {% endif %}
+
+                    <a href="{{ url_for('main.tracker') }}" class="px-3 py-1.5 rounded-lg text-sm font-medium transition {% if request.endpoint == 'main.tracker' %}bg-slate-800 text-emerald-400 border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-850{% endif %}">
+                        <i data-lucide="kanban-square" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Tracker
+                    </a>
+
+                    {% if session.get('candidate') %}
+                    <a href="{{ url_for('main.reset_session') }}" class="text-xs text-slate-400 hover:text-rose-400 px-2 py-1 rounded transition" title="Clear active CV">
+                        Reset
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Flash Messages Container -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-3 px-4 py-3 rounded-xl border flex items-center justify-between {% if category == 'error' %}bg-rose-950/60 border-rose-800/80 text-rose-200{% elif category == 'success' %}bg-emerald-950/60 border-emerald-800/80 text-emerald-200{% else %}bg-slate-800/80 border-slate-700 text-slate-200{% endif %} shadow-lg">
+                        <div class="flex items-center space-x-2.5">
+                            {% if category == 'error' %}
+                                <i data-lucide="alert-circle" class="w-5 h-5 text-rose-400 flex-shrink-0"></i>
+                            {% elif category == 'success' %}
+                                <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 flex-shrink-0"></i>
+                            {% else %}
+                                <i data-lucide="info" class="w-5 h-5 text-blue-400 flex-shrink-0"></i>
+                            {% endif %}
+                            <span class="text-sm font-medium">{{ message }}</span>
+                        </div>
+                        <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-slate-800/80 mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+            <div class="flex items-center space-x-2">
+                <span>AI Job Search Engine</span>
+                <span>•</span>
+                <span>Context: <code class="text-emerald-400 font-mono">{{ url_prefix or '/' }}</code></span>
+                <span>•</span>
+                <span>Targeting Indian Software Companies & Global Remote</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Manual Verification & ATS-Safe</span>
+                <span>•</span>
+                <a href="{{ url_for('main.tracker') }}" class="hover:text-emerald-400 transition">View Tracker CSV</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Init Lucide Icons -->
+    <script>
+        lucide.createIcons();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

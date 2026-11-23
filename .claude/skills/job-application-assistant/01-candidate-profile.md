@@ -4,70 +4,60 @@ framework_version: 1.1.1
 
 # Candidate Profile
 
-<!-- SETUP: This file is populated by running /setup -->
-<!-- After running /setup, all sections will be filled with your actual information -->
-
 ## Identity
-- **Name:** [YOUR_NAME]
-- **Location:** [YOUR_ADDRESS]
-- **Phone:** [YOUR_PHONE]
-- **Email:** [YOUR_EMAIL]
-- **LinkedIn:** [YOUR_LINKEDIN_URL]
-- **GitHub:** [YOUR_GITHUB_URL]
-- **Status:** [YOUR_EMPLOYMENT_STATUS]
-- **Constraints:** [YOUR_COMMUTE_OR_LOCATION_CONSTRAINTS]
+- **Name:** Aryashree Mazumder
+- **Location:** Bangalore, India
+- **Phone:** +91-9641340674
+- **Email:** aryashreemazumder31@gmail.com
+- **LinkedIn:** https://www.linkedin.com/in/aryashreemazumder
+- **GitHub:** https://github.com/aryashreemazumder
+- **Status:** Employed (Software Engineer at Juspay)
+- **Constraints:** Open to Bangalore, Hyderabad, Pune, NCR, Remote India, and Global Remote
 
 ### Languages
-<!-- Every language you can work in professionally, with your honest level. Used by the
-Language Gate in 04-job-evaluation.md and by job-scraper/search-queries.md's query-language
-generation. Omit any language you don't actually work in - an undeclared language is treated as
-a hard no, not a gap to smooth over. -->
-
 | Language | Level | Notes |
 |----------|-------|-------|
-| [LANGUAGE] | [LEVEL, e.g. "Native" / "C2" / "B1/B2 (conversational)"] | [optional] |
+| English | Professional working proficiency | Primary working language |
+| Bengali | Native | |
+| Hindi | Conversational | |
 
 ## Education
 
 | Degree | Period | Institution | Key Topics |
 |--------|--------|-------------|------------|
-| [DEGREE] | [YEARS] | [INSTITUTION] | [TOPICS] |
+| B.Tech in Computer Science Engineering | 2018 - 2022 | Jalpaiguri Government Engineering College | CGPA: 8.46/10; DSA, OS, DBMS, Networks |
 
 ## Professional Experience
 
-### [JOB_TITLE] - [COMPANY] ([START] - [END])
-[LOCATION]
-- [RESPONSIBILITY_OR_ACHIEVEMENT_1]
-- [RESPONSIBILITY_OR_ACHIEVEMENT_2]
-- [RESPONSIBILITY_OR_ACHIEVEMENT_3]
+### Software Engineer - Juspay (Dec 2022 - Present)
+Bangalore, India
+- Architected and developed an AWS MSK (Kafka) based multi-channel notification platform using Amazon SQS and Lambda for multi-provider routing (WhatsApp, Email, SMS, Push, Slack) processing 4K+ notifications/day.
+- Led a team to build a lead management system that auto-linked Zoho tickets to lead workflows for 1K+ monthly leads, reducing manual triage from hours to minutes and improving lead conversion by 20%.
+- Designed and developed an integration monitoring tool using AWS CloudWatch dashboards, reducing debugging time from 2–3 hours to under 30 minutes for failed merchant integrations.
+- Built a centralized maker–checker service with pluggable authentication and reusable approval workflows adopted by 8+ internal systems.
+- Designed and launched a distributed Feature Marketplace platform for merchant onboarding, reducing manual operations from 2–3 days to under 1 day.
 
-<!-- Add more roles as needed -->
+### Software Developer - Cloudkaptan (Aug 2022 - Nov 2022)
+Kolkata, India
+- Architected a bulk file ingestion and validation framework, enhancing throughput by 35%.
+- Implemented self-service user provisioning with RBAC, shortening onboarding time by 70%.
+- Led enterprise client discussions across 8–12 implementations, trimming delivery turnaround by 25%.
 
-## Independent Projects
-<!-- Projects outside of employment: freelance, open source, personal -->
-- **[PROJECT_NAME]**: [DESCRIPTION]
+### Software Developer Intern - Cloudkaptan (Jan 2022 - July 2022)
+- Designed and delivered end-to-end lending workflows handling 500+ loans/month.
+- Refactored triggers and workflows, boosting system reliability by 20% and incident resolution by 30%.
 
 ## Technical Skills
 
-### Programming & ML
-- **[LANGUAGE]** ([PROFICIENCY]): [FRAMEWORKS_AND_LIBRARIES]
-- [OTHER_SKILLS]
+### Languages & Frameworks
+- **Primary:** Java, C++, JavaScript, C, Haskell, ReScript
+- **Web & Frameworks:** ReactJS, REST APIs, Microservices architecture
 
-### Domain Expertise
-- [DOMAIN_1]
-- [DOMAIN_2]
+### Databases & Storage
+- MySQL, PostgreSQL, Redis, Apache Kafka
 
-### Software & Tools
-- [TOOL_LIST]
+### Cloud & DevOps
+- AWS (MSK, SQS, Lambda, CloudWatch, S3), Docker, Kubernetes, CI/CD (Jenkins), Git, Kibana, VictoriaLogs
 
-## Publications
-<!-- List peer-reviewed publications, if any -->
-1. [AUTHOR_LIST] ([YEAR]). [TITLE]. [JOURNAL]. [DOI_LINK]
-
-## Awards
-- [AWARD] - [EVENT] ([YEAR])
-
-## References
-- [NAME], [TITLE], [COMPANY] ([EMAIL], [PHONE])
-
-More references available upon request.
+### Core Concepts
+- Distributed Systems, System Design, Scalability, Message Queues, Data Modeling, Concurrency, AI Agents

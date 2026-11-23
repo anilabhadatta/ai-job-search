@@ -121,3 +121,8 @@ company_research/*.json
 
 # Brainstorm mockups (superpowers visual companion) - never ship
 .superpowers/
+
+# Web App temporary uploads
+web_app/uploads/*
+!web_app/uploads/.gitkeep
+
