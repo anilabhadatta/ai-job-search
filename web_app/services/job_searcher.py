@@ -1079,6 +1079,14 @@ class JobSearcher:
             key = f"{j['company'].lower()} - {j['title'].lower()}"
             if key not in seen_keys:
                 seen_keys.add(key)
+                # Clearly designate whether this job is from Live Web Scraping or Direct Career Portal
+                src = j.get("source", "")
+                if "RSS" in src or "API" in src or "Remote Feed" in src:
+                    j["source_type"] = "live_feed"
+                    j["source_category"] = "Live Web Scrap"
+                else:
+                    j["source_type"] = "career_portal"
+                    j["source_category"] = "Verified Career Portal"
                 deduped.append(j)
 
         return deduped[:limit]

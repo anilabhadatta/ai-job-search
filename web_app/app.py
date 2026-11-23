@@ -166,8 +166,9 @@ def results():
     max_days = int(max_days_raw) if max_days_raw and max_days_raw.isdigit() else session.get("max_days", 7)
     sort_by = request.args.get("sort_by", "match_desc")
     claude_status = session.get("claude_status")
-    if not claude_status:
-        claude_status = ClaudeRunner.execute_claude_pipeline(candidate, timeout_sec=5)
+    # Upgrade to Codex (ChatGPT Plus) if not yet loaded or if holding legacy status
+    if not claude_status or claude_status.get("provider") != "codex":
+        claude_status = ClaudeRunner.execute_claude_pipeline(candidate, timeout_sec=12)
         session["claude_status"] = claude_status
 
     # Fetch jobs across the expanded 70+ company catalog & live feeds
@@ -188,6 +189,8 @@ def results():
     high_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "High Match")
     med_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "Medium Match")
     expl_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "Exploratory")
+    live_scraped_count = sum(1 for j in ranked_jobs if j.get("source_type") == "live_feed")
+    career_portal_count = sum(1 for j in ranked_jobs if j.get("source_type") == "career_portal")
 
     return render_template(
         "results.html",
@@ -203,6 +206,8 @@ def results():
         high_count=high_count,
         med_count=med_count,
         expl_count=expl_count,
+        live_scraped_count=live_scraped_count,
+        career_portal_count=career_portal_count,
         total_count=len(ranked_jobs)
     )
 
