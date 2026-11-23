@@ -13,23 +13,23 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 ### Identity
 - **Name:** Aryashree Mazumder
 - **Location:** India (Open to Bangalore, Hyderabad, Pune, NCR, Remote India & Global Remote)
-- **Phone:** +91-9641340674
-- **Email:** aryashreemazumder31@gmail.com
-- **LinkedIn:** https://www.linkedin.com/in/aryashree-mazumder
-- **GitHub:** https://github.com/arya31
-- **Domain:** DevOps / Cloud Engineer (4.0 YoE)
-- **Status:** Employed @ Juspay
+- **Phone:** 
+- **Email:** 
+- **LinkedIn:** 
+- **GitHub:** 
+- **Domain:** DevOps / Cloud (4.0 YoE)
+- **Status:** Employed @ Tech Company
 - **Languages:**
   | Language | Level |
   |----------|-------|
   | English | Professional working proficiency |
 
 ### Summary
-Software Engineer with 4+ years of backend experience building microservices, REST APIs, internal SDKs, and data pipelines. Worked on authentication, authorization, developer tooling, and systems used across multiple product teams. Strong focus on building reliable services, reducing manual effort, and improving engineering workflows.
+DevOps / Cloud Engineer with 4.0 years of experience.
 
 ### Technical Skills
-- **Core Skills:** Java, C++, JavaScript, Haskell, ReactJS, REST APIs, Microservices, PostgreSQL, MySQL, Kafka, AWS MSK, AWS
-- **Domain:** DevOps / Cloud Engineer
+- **Core Skills:** Kubernetes, Docker, AWS, CI/CD, Terraform, Linux, Prometheus
+- **Domain:** DevOps / Cloud
 
 ## Workflow for New Job Applications
 1. Search jobs using `/scrape` or the Flask Web App

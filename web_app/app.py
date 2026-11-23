@@ -98,6 +98,7 @@ def upload_cv():
     role_query = request.form.get("role_query", "auto")
     max_days = int(request.form.get("max_days", 7))
     existing_file = request.form.get("existing_file")
+    review_skills = request.form.get("review_skills") == "true"
 
     target_path = None
 
@@ -131,21 +132,130 @@ def upload_cv():
         # Automatically synchronize profile with Claude Code CLI
         sync_to_claude_cli(candidate_data)
 
-        # Automatically trigger Claude Code CLI in background with graceful fallback
-        claude_status = ClaudeRunner.execute_claude_pipeline(candidate_data, timeout_sec=8)
-        session["claude_status"] = claude_status
-
         session["candidate"] = {k: v for k, v in candidate_data.items() if k != "raw_text"}
         session["region"] = region
         session["role_query"] = role_query
         session["max_days"] = max_days
         session["cv_filename"] = os.path.basename(target_path)
 
+        if review_skills:
+            return redirect(url_for("main.review_skills_view"))
+
+        # If review not requested, execute pipeline immediately
+        claude_status = ClaudeRunner.execute_claude_pipeline(candidate_data, timeout_sec=8)
+        session["claude_status"] = claude_status
+
         flash(f"Processed CV for {candidate_data['name']} ({candidate_data.get('primary_domain', 'Software Engineer')})!", "success")
         return redirect(url_for("main.results"))
     except Exception as e:
         flash(f"Failed to parse CV: {str(e)}", "error")
         return redirect(url_for("main.index"))
+
+
+@main_bp.route("/review-skills")
+def review_skills_view():
+    candidate = session.get("candidate")
+    if not candidate:
+        flash("Please upload a CV or select a profile first.", "info")
+        return redirect(url_for("main.index"))
+    return render_template(
+        "review_skills.html",
+        candidate=candidate,
+        region=session.get("region", "All"),
+        max_days=session.get("max_days", 7)
+    )
+
+
+@main_bp.route("/direct-skills-input", methods=["POST"])
+def direct_skills_input():
+    name = request.form.get("name", "Candidate").strip()
+    primary_domain = request.form.get("primary_domain", "Backend")
+    try:
+        estimated_yoe = float(request.form.get("estimated_yoe", 4.0))
+    except Exception:
+        estimated_yoe = 4.0
+    raw_skills = request.form.get("skills", "")
+    try:
+        min_lpa = float(request.form.get("min_lpa", 0))
+    except Exception:
+        min_lpa = 0.0
+    region = request.form.get("region", "All")
+
+    skills = [s.strip() for s in raw_skills.split(",") if s.strip() and s.strip() != "C"]
+    candidate_data = {
+        "name": name,
+        "email": "",
+        "phone": "",
+        "linkedin": "",
+        "github": "",
+        "current_company": "Tech Company",
+        "primary_domain": primary_domain,
+        "estimated_yoe": estimated_yoe,
+        "skills": skills,
+        "summary": f"{primary_domain} Engineer with {estimated_yoe} years of experience."
+    }
+    session["candidate"] = candidate_data
+    session["region"] = region
+    session["role_query"] = primary_domain
+    session["min_lpa"] = min_lpa
+    session["max_days"] = 7
+    sync_to_claude_cli(candidate_data)
+    return redirect(url_for("main.review_skills_view"))
+
+
+@main_bp.route("/analyze-custom-skills", methods=["POST"])
+def analyze_custom_skills():
+    candidate = session.get("candidate", {})
+    name = request.form.get("name", candidate.get("name", "Candidate")).strip()
+    primary_domain = request.form.get("primary_domain", candidate.get("primary_domain", "Backend"))
+    try:
+        estimated_yoe = float(request.form.get("estimated_yoe", candidate.get("estimated_yoe", 4.0)))
+    except Exception:
+        estimated_yoe = 4.0
+
+    raw_skills = request.form.get("custom_skills", "")
+    skills = [s.strip() for s in raw_skills.split(",") if s.strip() and s.strip() != "C"]
+    if not skills:
+        skills = candidate.get("skills", ["Java", "Python", "SQL", "Cloud"])
+
+    try:
+        min_lpa = float(request.form.get("min_lpa", 0))
+    except Exception:
+        min_lpa = 0.0
+    region = request.form.get("region", "All")
+    run_codex = request.form.get("run_codex") == "true"
+
+    # Update candidate in session
+    candidate["name"] = name
+    candidate["primary_domain"] = primary_domain
+    candidate["estimated_yoe"] = estimated_yoe
+    candidate["skills"] = skills
+    session["candidate"] = candidate
+    session["region"] = region
+    session["role_query"] = primary_domain
+    session["min_lpa"] = min_lpa
+
+    # Sync profile with CLAUDE.md
+    sync_to_claude_cli(candidate)
+
+    # Live OpenAI Codex Job Discovery
+    if run_codex:
+        codex_jobs = ClaudeRunner.search_jobs_with_codex(
+            skills=skills,
+            role=primary_domain,
+            region=region,
+            limit=4,
+            timeout_sec=25
+        )
+        if codex_jobs:
+            session["codex_jobs"] = codex_jobs
+            flash(f"OpenAI Codex (ChatGPT Plus) discovered {len(codex_jobs)} active jobs with direct apply links!", "success")
+
+    # Fetch strategic advice from Codex
+    claude_status = ClaudeRunner.execute_claude_pipeline(candidate, timeout_sec=12)
+    session["claude_status"] = claude_status
+
+    return redirect(url_for("main.results", min_lpa=min_lpa, region=region))
 
 
 @main_bp.route("/results")
@@ -164,6 +274,13 @@ def results():
     role_query = request.args.get("role_query") or session.get("role_query", candidate.get("primary_domain", "Backend"))
     max_days_raw = request.args.get("max_days")
     max_days = int(max_days_raw) if max_days_raw and max_days_raw.isdigit() else session.get("max_days", 7)
+    
+    min_lpa_raw = request.args.get("min_lpa")
+    try:
+        min_lpa = float(min_lpa_raw) if min_lpa_raw is not None else float(session.get("min_lpa", 0))
+    except Exception:
+        min_lpa = 0.0
+
     sort_by = request.args.get("sort_by", "match_desc")
     claude_status = session.get("claude_status")
     # Upgrade to Codex (ChatGPT Plus) if not yet loaded or if holding legacy status
@@ -171,13 +288,18 @@ def results():
         claude_status = ClaudeRunner.execute_claude_pipeline(candidate, timeout_sec=12)
         session["claude_status"] = claude_status
 
-    # Fetch jobs across the expanded 70+ company catalog & live feeds
+    # Get cached Codex jobs from session
+    codex_jobs = session.get("codex_jobs", [])
+
+    # Fetch jobs across the expanded 70+ company catalog, live feeds & Codex discoveries
     jobs = JobSearcher.search(
         candidate_skills=candidate.get("skills", []),
         region_filter=region,
         role_query=role_query,
         max_days=max_days,
-        limit=70
+        min_lpa=min_lpa,
+        codex_jobs=codex_jobs,
+        limit=75
     )
 
     # Score and rank jobs
@@ -189,6 +311,7 @@ def results():
     high_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "High Match")
     med_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "Medium Match")
     expl_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "Exploratory")
+    codex_count = sum(1 for j in ranked_jobs if j.get("source_type") == "codex")
     live_scraped_count = sum(1 for j in ranked_jobs if j.get("source_type") == "live_feed")
     career_portal_count = sum(1 for j in ranked_jobs if j.get("source_type") == "career_portal")
 
@@ -199,6 +322,7 @@ def results():
         region=region,
         role_query=role_query,
         max_days=max_days,
+        min_lpa=min_lpa,
         sort_by=sort_by,
         company_count=company_count,
         unique_companies=unique_companies,
@@ -206,6 +330,7 @@ def results():
         high_count=high_count,
         med_count=med_count,
         expl_count=expl_count,
+        codex_count=codex_count,
         live_scraped_count=live_scraped_count,
         career_portal_count=career_portal_count,
         total_count=len(ranked_jobs)

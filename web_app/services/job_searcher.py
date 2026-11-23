@@ -1027,17 +1027,55 @@ class JobSearcher:
             pass
         return jobs
 
+    @staticmethod
+    def parse_min_lpa(salary_range: str) -> float:
+        """Extract minimum numeric compensation in LPA equivalent."""
+        if not salary_range:
+            return 0.0
+        s = str(salary_range).lower()
+        if "lpa" in s:
+            nums = re.findall(r"(\d+(?:\.\d+)?)", s)
+            if nums:
+                return float(nums[0])
+        if "$" in s or "usd" in s:
+            nums = re.findall(r"(\d[\d,]*)", s)
+            if nums:
+                try:
+                    clean_str = nums[0].replace(",", "")
+                    val = float(clean_str)
+                    if val > 1000:
+                        return round(val / 3300.0, 1)  # $100k -> ~30 LPA tier
+                    elif val > 0:
+                        return round(val / 3.3, 1)
+                except Exception:
+                    pass
+        return 0.0
+
     @classmethod
-    def search(cls,
-               candidate_skills: Optional[List[str]] = None,
-               region_filter: str = "All",
-               role_query: str = "Backend",
-               max_days: int = 7,
-               limit: int = 70) -> List[Dict[str, Any]]:
+    def search(
+        cls,
+        candidate_skills: Optional[List[str]] = None,
+        region_filter: str = "All",
+        role_query: str = "Backend",
+        max_days: int = 7,
+        min_lpa: float = 0.0,
+        codex_jobs: Optional[List[Dict[str, Any]]] = None,
+        limit: int = 70
+    ) -> List[Dict[str, Any]]:
         """
-        Generic search across all software engineering tracks with recency filter.
+        Dynamically search and aggregate jobs matching candidate domain and skills.
+        Includes:
+        - Real OpenAI Codex AI discovered jobs (live web search via ChatGPT Plus)
+        - Curated Indian Tech Giants, Unicorns, and GCCs
+        - Curated Global Tech Remote
+        - Live WeWorkRemotely RSS feed
+        - Live Remotive API feed
         """
         all_jobs = []
+
+        # 0. Add any live jobs discovered by OpenAI Codex AI
+        if codex_jobs:
+            all_jobs.extend(codex_jobs)
 
         # 1. Add Indian Tech Jobs
         if region_filter in ["All", "India"]:
@@ -1072,21 +1110,49 @@ class JobSearcher:
             if not q_lower or q_lower == "all" or q_lower in text_corpus or "engineer" in text_corpus or "developer" in text_corpus:
                 filtered.append(j)
 
-        # Deduplicate by company + title
+        # Deduplicate by company + title & enrich with deep apply URLs and compensation metadata
         seen_keys = set()
         deduped = []
         for j in filtered:
             key = f"{j['company'].lower()} - {j['title'].lower()}"
             if key not in seen_keys:
                 seen_keys.add(key)
-                # Clearly designate whether this job is from Live Web Scraping or Direct Career Portal
+                
+                # Classify source type & category
                 src = j.get("source", "")
-                if "RSS" in src or "API" in src or "Remote Feed" in src:
+                if j.get("source_type") == "codex" or "codex" in src.lower():
+                    j["source_type"] = "codex"
+                    j["source_category"] = "Codex AI Discovered"
+                elif "RSS" in src or "API" in src or "Remote Feed" in src:
                     j["source_type"] = "live_feed"
                     j["source_category"] = "Live Web Scrap"
                 else:
                     j["source_type"] = "career_portal"
                     j["source_category"] = "Verified Career Portal"
+
+                # Numeric compensation
+                j["min_lpa"] = cls.parse_min_lpa(j.get("salary_range", ""))
+
+                # Deep direct application & career portal links
+                comp = j.get("company", "").strip()
+                title = j.get("title", "").strip()
+                orig_apply = j.get("apply_url") or j.get("url") or ""
+                linkedin_deep_search = f"https://www.linkedin.com/jobs/search/?keywords={urllib.parse.quote(comp + ' ' + title)}"
+
+                if j["source_type"] == "codex":
+                    j["direct_apply_url"] = orig_apply
+                    j["career_site_url"] = f"https://www.google.com/search?q={urllib.parse.quote(comp + ' careers')}"
+                elif j["source_type"] == "live_feed":
+                    j["direct_apply_url"] = orig_apply
+                    j["career_site_url"] = orig_apply
+                else:
+                    j["direct_apply_url"] = linkedin_deep_search
+                    j["career_site_url"] = orig_apply
+
                 deduped.append(j)
+
+        # Apply min compensation filter if specified
+        if min_lpa > 0:
+            deduped = [j for j in deduped if j.get("min_lpa", 0) >= min_lpa]
 
         return deduped[:limit]

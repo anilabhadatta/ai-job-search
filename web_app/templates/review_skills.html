@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Review & Customize Skills | AI Job Search{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6 py-4">
+
+    <!-- Progress & Header -->
+    <div class="text-center space-y-2">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold tracking-wide uppercase">
+            <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+            <span>Profile Customization</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+            Review & Refine Your Skills
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+            Add or remove skills, specify your desired compensation bar, and configure OpenAI Codex live search before running ATS matching.
+        </p>
+    </div>
+
+    <!-- Customization Form Card -->
+    <div class="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-6">
+        <form action="{{ url_for('main.analyze_custom_skills') }}" method="POST" id="skillsForm" class="space-y-6">
+
+            <!-- Candidate Info Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-slate-800/80">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Candidate Name</label>
+                    <input type="text" name="name" value="{{ candidate.name }}" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 font-medium">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Primary Domain / Track</label>
+                    <select name="primary_domain" id="domainSelect" onchange="updateSuggestedSkills(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 font-medium">
+                        <option value="Backend" {% if 'backend' in (candidate.primary_domain or '')|lower %}selected{% endif %}>Backend Engineer</option>
+                        <option value="Full Stack" {% if 'full stack' in (candidate.primary_domain or '')|lower %}selected{% endif %}>Full Stack Engineer</option>
+                        <option value="Frontend" {% if 'frontend' in (candidate.primary_domain or '')|lower %}selected{% endif %}>Frontend Engineer</option>
+                        <option value="DevOps / Cloud" {% if 'devops' in (candidate.primary_domain or '')|lower or 'cloud' in (candidate.primary_domain or '')|lower %}selected{% endif %}>DevOps / Cloud Engineer</option>
+                        <option value="Data & AI" {% if 'data' in (candidate.primary_domain or '')|lower or 'ai' in (candidate.primary_domain or '')|lower %}selected{% endif %}>Data & AI Engineer</option>
+                        <option value="Mobile" {% if 'mobile' in (candidate.primary_domain or '')|lower or 'android' in (candidate.primary_domain or '')|lower or 'ios' in (candidate.primary_domain or '')|lower %}selected{% endif %}>Mobile Engineer</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Experience (YoE)</label>
+                    <input type="number" step="0.5" name="estimated_yoe" value="{{ candidate.estimated_yoe or 4.0 }}" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 font-medium">
+                </div>
+            </div>
+
+            <!-- Target Compensation & Region Filter Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-800/80">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1">
+                        <i data-lucide="badge-indian-rupee" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Desired Minimum Compensation</span>
+                    </label>
+                    <select name="min_lpa" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 font-medium">
+                        <option value="0" selected>Any Compensation (Show All)</option>
+                        <option value="18">💰 18+ LPA / $65k+ (Entry to Mid)</option>
+                        <option value="25">💰 25+ LPA / $90k+ (SDE-2 / Senior)</option>
+                        <option value="35">💰 35+ LPA / $125k+ (High Growth Unicorns)</option>
+                        <option value="45">💰 45+ LPA / $160k+ (Staff / Principal)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        <span>Preferred Location</span>
+                    </label>
+                    <select name="region" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 font-medium">
+                        <option value="All" {% if region == 'All' %}selected{% endif %}>🌐 All (India Tech Hubs & Global Remote)</option>
+                        <option value="India" {% if region == 'India' %}selected{% endif %}>🇮🇳 India (Bangalore, Hyderabad, Pune, NCR)</option>
+                        <option value="Global Remote" {% if region == 'Global Remote' %}selected{% endif %}>🌍 Global Remote (Worldwide)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Interactive Skills Editor -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center space-x-1.5">
+                            <i data-lucide="tags" class="w-4 h-4 text-emerald-400"></i>
+                            <span>Active Skills Profile (<span id="skillCount">{{ candidate.skills|length }}</span>)</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Click the <span class="text-red-400 font-bold">×</span> to remove any skill, or use the input below to add more.</p>
+                    </div>
+                    <button type="button" onclick="clearAllSkills()" class="text-[11px] text-slate-400 hover:text-red-400 transition font-medium">
+                        Clear All
+                    </button>
+                </div>
+
+                <!-- Skill Badges Container -->
+                <div id="skillsTagContainer" class="flex flex-wrap gap-2 p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 min-h-[90px] max-h-56 overflow-y-auto">
+                    {% for skill in candidate.skills %}
+                    {% if skill != 'C' %}
+                    <span class="skill-tag inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs font-medium bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 shadow-sm" data-skill="{{ skill }}">
+                        <span>{{ skill }}</span>
+                        <button type="button" onclick="removeSkill(this)" class="text-emerald-500 hover:text-red-400 font-bold leading-none ml-1 transition">×</button>
+                    </span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Add New Skill Input -->
+                <div class="flex items-center space-x-2 pt-1">
+                    <div class="relative flex-1">
+                        <input type="text" id="newSkillInput" placeholder="Type a skill (e.g. Go, Redis, Microservices, System Design, GraphQL)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <button type="button" onclick="addSkillFromInput()" class="px-4 py-2 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-300 font-semibold text-xs transition flex items-center space-x-1 flex-shrink-0">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>Add Skill</span>
+                    </button>
+                </div>
+
+                <!-- Quick Suggestions Strip -->
+                <div class="pt-2">
+                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Quick Add Suggestions:</span>
+                    <div id="suggestedSkills" class="flex flex-wrap gap-1.5">
+                        <!-- Populated by JS based on domain -->
+                    </div>
+                </div>
+
+                <!-- Hidden Input holding comma-separated list of skills -->
+                <input type="hidden" name="custom_skills" id="customSkillsHidden" value="{{ candidate.skills|join(',') }}">
+            </div>
+
+            <!-- OpenAI Codex Job Search Toggle -->
+            <div class="bg-gradient-to-r from-emerald-950/40 via-purple-950/20 to-slate-900 border border-emerald-500/40 rounded-2xl p-4 shadow-xl">
+                <label class="flex items-start space-x-3 cursor-pointer">
+                    <input type="checkbox" name="run_codex" value="true" checked class="mt-1 w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700 focus:ring-emerald-500 cursor-pointer">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs sm:text-sm font-bold text-white">Live OpenAI Codex Job Discovery</span>
+                            <span class="px-2 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[10px] border border-emerald-500/30">ChatGPT Plus (gpt-6.2-sol)</span>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Searches the live web in real time for newly posted jobs across Indian tech giants & global remote teams with <strong>direct application links</strong>.
+                        </p>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3">
+                <a href="{{ url_for('main.index') }}" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300 text-center transition">
+                    ← Upload Different CV
+                </a>
+
+                <button type="submit" id="submitBtn" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm transition shadow-xl shadow-emerald-500/20 flex items-center justify-center space-x-2">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    <span>Analyze & Find Matched Jobs</span>
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const SUGGESTIONS_BY_DOMAIN = {
+        'Backend': ['Redis', 'Kafka', 'Go', 'Microservices', 'System Design', 'PostgreSQL', 'Docker', 'AWS', 'GraphQL', 'gRPC'],
+        'Full Stack': ['React', 'Node.js', 'TypeScript', 'Next.js', 'PostgreSQL', 'Tailwind', 'GraphQL', 'AWS', 'REST APIs'],
+        'Frontend': ['React', 'TypeScript', 'Next.js', 'Tailwind', 'Redux', 'Vue.js', 'Performance Optimization', 'Web Vitals'],
+        'DevOps / Cloud': ['Kubernetes', 'Terraform', 'Docker', 'AWS', 'CI/CD', 'GitHub Actions', 'Prometheus', 'Linux', 'Ansible'],
+        'Data & AI': ['Python', 'PyTorch', 'TensorFlow', 'LLMs', 'LangChain', 'Pandas', 'Spark', 'Vector Databases', 'MLOps'],
+        'Mobile': ['React Native', 'Flutter', 'Swift', 'Kotlin', 'Android SDK', 'iOS', 'Firebase', 'State Management']
+    };
+
+    function updateSuggestedSkills(domain) {
+        const container = document.getElementById('suggestedSkills');
+        container.innerHTML = '';
+        
+        let matchDomain = 'Backend';
+        for (const k in SUGGESTIONS_BY_DOMAIN) {
+            if (domain.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(domain.toLowerCase())) {
+                matchDomain = k;
+                break;
+            }
+        }
+        
+        const suggestions = SUGGESTIONS_BY_DOMAIN[matchDomain] || SUGGESTIONS_BY_DOMAIN['Backend'];
+        const existingSkills = getActiveSkills().map(s => s.toLowerCase());
+
+        suggestions.forEach(skill => {
+            if (!existingSkills.includes(skill.toLowerCase())) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'px-2 py-0.5 rounded-lg bg-slate-900 hover:bg-emerald-950/60 border border-slate-750 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 text-xs font-medium transition';
+                btn.textContent = `+ ${skill}`;
+                btn.onclick = () => addSkill(skill);
+                container.appendChild(btn);
+            }
+        });
+    }
+
+    function getActiveSkills() {
+        const tags = document.querySelectorAll('#skillsTagContainer .skill-tag');
+        const list = [];
+        tags.forEach(t => list.push(t.dataset.skill.trim()));
+        return list;
+    }
+
+    function syncHiddenInput() {
+        const skills = getActiveSkills();
+        document.getElementById('customSkillsHidden').value = skills.join(',');
+        document.getElementById('skillCount').textContent = skills.length;
+        updateSuggestedSkills(document.getElementById('domainSelect').value);
+    }
+
+    function removeSkill(btn) {
+        const tag = btn.closest('.skill-tag');
+        if (tag) {
+            tag.remove();
+            syncHiddenInput();
+        }
+    }
+
+    function clearAllSkills() {
+        document.getElementById('skillsTagContainer').innerHTML = '';
+        syncHiddenInput();
+    }
+
+    function addSkill(skillName) {
+        const clean = skillName.trim();
+        if (!clean) return;
+        const existing = getActiveSkills().map(s => s.toLowerCase());
+        if (existing.includes(clean.toLowerCase())) return;
+
+        const container = document.getElementById('skillsTagContainer');
+        const span = document.createElement('span');
+        span.className = 'skill-tag inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs font-medium bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 shadow-sm';
+        span.dataset.skill = clean;
+        span.innerHTML = `<span>${clean}</span><button type="button" onclick="removeSkill(this)" class="text-emerald-500 hover:text-red-400 font-bold leading-none ml-1 transition">×</button>`;
+        container.appendChild(span);
+        syncHiddenInput();
+    }
+
+    function addSkillFromInput() {
+        const input = document.getElementById('newSkillInput');
+        const val = input.value.trim();
+        if (val) {
+            // Support comma separated
+            val.split(',').forEach(s => addSkill(s));
+            input.value = '';
+        }
+    }
+
+    document.getElementById('newSkillInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addSkillFromInput();
+        }
+    });
+
+    // Initial populate
+    document.addEventListener('DOMContentLoaded', () => {
+        syncHiddenInput();
+    });
+</script>
+{% endblock %}

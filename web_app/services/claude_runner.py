@@ -2,14 +2,18 @@
 Agent Runner Service (OpenAI Codex CLI & Claude Code CLI)
 Automatically triggers AI agents upon CV upload:
 1. OpenAI Codex CLI (gpt-6.2-sol) powered by active ChatGPT Plus account.
+   - Profile strategic career analysis
+   - Live web search for active job postings with real application URLs
 2. Claude Code CLI (/scrape, /rank) if Anthropic balance is available.
 3. Seamless native scraper engine as a guaranteed zero-cost fallback.
 """
 
 import os
 import sys
+import re
 import json
 import shutil
+import urllib.parse
 import subprocess
 from typing import Dict, Any, List
 
@@ -47,6 +51,91 @@ class ClaudeRunner:
         return claude_path or ""
 
     @classmethod
+    def search_jobs_with_codex(
+        cls,
+        skills: List[str],
+        role: str = "Software Engineer",
+        region: str = "India",
+        limit: int = 3,
+        timeout_sec: int = 25
+    ) -> List[Dict[str, Any]]:
+        """
+        Uses OpenAI Codex CLI (via connected ChatGPT Plus account) to search the live web
+        for active job openings and returns structured jobs with direct application URLs.
+        """
+        codex_exec = cls.get_codex_executable()
+        if not codex_exec:
+            return []
+
+        skills_str = ", ".join(skills[:5]) if skills else "Software Engineering"
+        prompt = (
+            f"Search for {limit} real active software engineering job openings in {region} or Global Remote "
+            f"posted recently for {role} matching skills: {skills_str}. "
+            f"Find real direct application URLs from company career boards, LinkedIn, Greenhouse, or Lever. "
+            f"Output ONLY a valid JSON array of objects with keys: "
+            f"'company', 'title', 'location', 'salary_range', 'apply_url', 'skills_required', 'posted_days_ago'."
+        )
+
+        try:
+            cmd = [codex_exec, "exec", "--ephemeral", prompt]
+            process = subprocess.run(
+                cmd,
+                input="",
+                cwd=BASE_DIR,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=timeout_sec,
+                shell=(os.name == "nt")
+            )
+
+            stdout = process.stdout or ""
+            match = re.search(r'\[\s*\{.*?\}\s*\]', stdout, re.DOTALL)
+            if match:
+                raw_jobs = json.loads(match.group(0))
+                parsed_jobs = []
+                for item in raw_jobs:
+                    company = (item.get("company") or "Tech Company").strip()
+                    title = (item.get("title") or f"{role} Engineer").strip()
+                    apply_url = item.get("apply_url")
+                    if not apply_url or not apply_url.startswith("http"):
+                        apply_url = f"https://www.linkedin.com/jobs/search/?keywords={urllib.parse.quote(company + ' ' + title)}"
+
+                    days = item.get("posted_days_ago") or 2
+                    try:
+                        days = int(days)
+                    except Exception:
+                        days = 2
+
+                    parsed_jobs.append({
+                        "id": f"codex-{abs(hash(apply_url + title)) % 1000000}",
+                        "title": title,
+                        "company": company,
+                        "location": item.get("location") or "India / Remote",
+                        "region": region if region in ["India", "Global Remote"] else "India & Remote",
+                        "domain": role,
+                        "salary_range": item.get("salary_range") or "25 - 45 LPA",
+                        "employment_type": "Full-time",
+                        "posted_days_ago": days,
+                        "posted_date": f"{days} days ago" if days > 1 else "1 day ago",
+                        "description": f"Real active opening discovered by OpenAI Codex AI via live web search for {role}.",
+                        "skills_required": item.get("skills_required") or skills[:5],
+                        "min_yoe": 2,
+                        "max_yoe": 6,
+                        "url": apply_url,
+                        "apply_url": apply_url,
+                        "direct_apply_url": apply_url,
+                        "career_site_url": f"https://www.google.com/search?q={urllib.parse.quote(company + ' careers')}",
+                        "source": f"Codex AI ({company})",
+                        "source_type": "codex",
+                        "source_category": "Codex AI Discovered"
+                    })
+                return parsed_jobs
+        except Exception:
+            pass
+        return []
+
+    @classmethod
     def execute_codex_pipeline(cls, candidate: Dict[str, Any], timeout_sec: int = 15) -> Dict[str, Any]:
         """
         Executes OpenAI Codex CLI non-interactively using the active ChatGPT Plus account.
@@ -80,8 +169,6 @@ class ClaudeRunner:
             )
 
             stdout = process.stdout or ""
-            stderr = process.stderr or ""
-            combined = stdout + stderr
 
             if process.returncode == 0:
                 # Extract clean bullet points
