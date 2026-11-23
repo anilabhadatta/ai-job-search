@@ -84,7 +84,7 @@
             </div>
 
             <!-- Parameters Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1.5">Target Region</label>
                     <select name="region" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500">
@@ -101,6 +101,29 @@
                         <option value="14">📅 Last 14 Days</option>
                         <option value="0">🌐 All Time</option>
                     </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+                        <span class="flex items-center space-x-1">
+                            <i data-lucide="badge-indian-rupee" class="w-3.5 h-3.5 text-emerald-400"></i>
+                            <span>Min Salary</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500 font-mono">e.g. 20, 25 LPA</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="0.5" min="0" max="250" name="min_lpa" id="uploadMinLpa" value="0" placeholder="0 (Any)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 font-mono font-semibold">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-xs text-slate-400 font-semibold">
+                            LPA
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 mt-1.5 overflow-x-auto">
+                        <button type="button" onclick="document.getElementById('uploadMinLpa').value=0" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Any</button>
+                        <button type="button" onclick="document.getElementById('uploadMinLpa').value=18" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">18+</button>
+                        <button type="button" onclick="document.getElementById('uploadMinLpa').value=25" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">25+</button>
+                        <button type="button" onclick="document.getElementById('uploadMinLpa').value=35" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">35+</button>
+                        <button type="button" onclick="document.getElementById('uploadMinLpa').value=45" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">45+</button>
+                    </div>
                 </div>
             </div>
 
@@ -158,14 +181,26 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Target Minimum Compensation</label>
-                    <select name="min_lpa" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500">
-                        <option value="0" selected>Any Compensation (Show All)</option>
-                        <option value="18">💰 18+ LPA / $65k+</option>
-                        <option value="25">💰 25+ LPA / $90k+</option>
-                        <option value="35">💰 35+ LPA / $125k+</option>
-                        <option value="45">💰 45+ LPA / $160k+</option>
-                    </select>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                        <span class="flex items-center space-x-1">
+                            <i data-lucide="badge-indian-rupee" class="w-3.5 h-3.5 text-emerald-400"></i>
+                            <span>Target Minimum Salary</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500 font-mono">Type custom or click preset</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="0.5" min="0" max="250" name="min_lpa" id="directMinLpa" value="0" placeholder="0 (Any Compensation)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 font-mono font-semibold">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-xs text-slate-400 font-semibold">
+                            LPA
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-1.5">
+                        <button type="button" onclick="document.getElementById('directMinLpa').value=0" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Any</button>
+                        <button type="button" onclick="document.getElementById('directMinLpa').value=18" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">18+ LPA</button>
+                        <button type="button" onclick="document.getElementById('directMinLpa').value=25" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">25+ LPA</button>
+                        <button type="button" onclick="document.getElementById('directMinLpa').value=35" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">35+ LPA</button>
+                        <button type="button" onclick="document.getElementById('directMinLpa').value=45" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">45+ LPA</button>
+                    </div>
                 </div>
 
                 <div>

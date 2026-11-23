@@ -98,6 +98,10 @@ def upload_cv():
     region = request.form.get("region", "All")
     role_query = request.form.get("role_query", "auto")
     max_days = int(request.form.get("max_days", 7))
+    try:
+        min_lpa = float(request.form.get("min_lpa", 0))
+    except Exception:
+        min_lpa = 0.0
     existing_file = request.form.get("existing_file")
     review_skills = request.form.get("review_skills") == "true"
 
@@ -137,6 +141,7 @@ def upload_cv():
         session["region"] = region
         session["role_query"] = role_query
         session["max_days"] = max_days
+        session["min_lpa"] = min_lpa
         session["cv_filename"] = os.path.basename(target_path)
 
         if review_skills:
@@ -146,7 +151,7 @@ def upload_cv():
         task_id = TaskManager.start_pipeline_async(
             candidate_data=candidate_data,
             run_codex=True,
-            min_lpa=0.0,
+            min_lpa=min_lpa,
             region=region,
             role_query=role_query,
             max_days=max_days
@@ -259,7 +264,8 @@ def review_skills_view():
         "review_skills.html",
         candidate=candidate,
         region=session.get("region", "All"),
-        max_days=session.get("max_days", 7)
+        max_days=session.get("max_days", 7),
+        min_lpa=session.get("min_lpa", 0.0)
     )
 
 
