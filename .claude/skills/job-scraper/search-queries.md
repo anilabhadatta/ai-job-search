@@ -1,20 +1,20 @@
-# Search Queries for Job Scraper - Aryashree Mazumder
+# Search Queries for Job Scraper - ANILABHA DATTA
 
-## Target Domain: DevOps / Cloud Engineer
-Primary Skills: Java, C++, JavaScript, Haskell, ReactJS, REST APIs, Microservices, PostgreSQL, MySQL, Kafka, AWS MSK, AWS
+## Target Domain: Full Stack Engineer
+Primary Skills: Java, Python, TypeScript, SQL, React, Angular, HTML, CSS, Spring Boot, Spring, Flask, REST APIs
 
 ## Query Categories
 
-### Priority 1: DevOps / Cloud Engineer Roles
+### Priority 1: Full Stack Engineer Roles
 #### Plain terms (portal CLIs)
 ```
-DevOps / Cloud Engineer
-Java C++
+Full Stack Engineer
+Java Python
 ```
 
 #### WebSearch-only (`site:` fallback)
 ```
-site:linkedin.com/jobs "DevOps / Cloud Engineer" India
-site:linkedin.com/jobs "DevOps / Cloud Engineer" Remote
-site:naukri.com "DevOps / Cloud Engineer" "Java C++"
+site:linkedin.com/jobs "Full Stack Engineer" India
+site:linkedin.com/jobs "Full Stack Engineer" Remote
+site:naukri.com "Full Stack Engineer" "Java Python"
 ```
