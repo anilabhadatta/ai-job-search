@@ -153,7 +153,7 @@ class TaskManager:
                         role=candidate_data.get("primary_domain", role_query),
                         region=region,
                         limit=4,
-                        timeout_sec=25
+                        timeout_sec=55
                     )
                 except Exception as e:
                     codex_jobs = []
@@ -193,6 +193,7 @@ class TaskManager:
                 "med_count": sum(1 for j in ranked_jobs if j.get("match_tier") == "Medium Match"),
                 "expl_count": sum(1 for j in ranked_jobs if j.get("match_tier") == "Exploratory"),
                 "codex_count": sum(1 for j in ranked_jobs if j.get("source_type") == "codex"),
+                "ats_count": sum(1 for j in ranked_jobs if j.get("source_type") == "ats_portal"),
                 "live_scraped_count": sum(1 for j in ranked_jobs if j.get("source_type") == "live_feed"),
                 "career_portal_count": sum(1 for j in ranked_jobs if j.get("source_type") == "career_portal")
             }

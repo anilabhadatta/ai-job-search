@@ -200,6 +200,12 @@
                 <span>Codex AI ({{ codex_count }})</span>
             </button>
             {% endif %}
+            {% if ats_count > 0 %}
+            <button onclick="filterJobs('ats_portal')" class="filter-tab px-3 py-1.5 rounded-xl font-medium transition text-teal-300 hover:bg-slate-800 border border-transparent flex items-center space-x-1" data-filter="ats_portal" title="Real active job openings with direct application forms on Greenhouse & Lever ATS">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-teal-400"></i>
+                <span>Direct ATS Jobs ({{ ats_count }})</span>
+            </button>
+            {% endif %}
             <button onclick="filterJobs('career_portal')" class="filter-tab px-3 py-1.5 rounded-xl font-medium transition text-emerald-300 hover:bg-slate-800 border border-transparent" data-filter="career_portal" title="Real postings from company career portals">
                 🏢 Company Portals ({{ career_portal_count }})
             </button>
@@ -313,6 +319,11 @@
                         <span class="text-xs px-2.5 py-0.5 rounded-md bg-purple-500/20 border border-purple-500/40 text-purple-300 font-semibold flex items-center space-x-1 shadow-sm" title="Real active job discovered via OpenAI Codex (ChatGPT Plus) live web search">
                             <i data-lucide="bot" class="w-3.5 h-3.5 text-purple-400"></i>
                             <span>Codex AI Discovered • {{ job.source }}</span>
+                        </span>
+                        {% elif job.source_type == 'ats_portal' %}
+                        <span class="text-xs px-2.5 py-0.5 rounded-md bg-teal-500/20 border border-teal-500/40 text-teal-300 font-semibold flex items-center space-x-1 shadow-sm" title="Exact direct application page on company ATS (Greenhouse/Lever)">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-teal-400"></i>
+                            <span>Direct ATS • {{ job.source }}</span>
                         </span>
                         {% elif job.source_type == 'live_feed' %}
                         <span class="text-xs px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-300 font-medium flex items-center space-x-1" title="Scraped live from remote web portals & APIs">
@@ -431,18 +442,6 @@
                         <!-- Save to Tracker Dropdown -->
                         <div class="relative">
                             <select onchange="updateTracker(this, '{{ job.company|escape }}', '{{ job.title|escape }}', '{{ job.match_tier }}', '{{ job.apply_url }}')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-emerald-500">
-                                <option value="" disabled selected>📌 Add to Tracker...</option>
-                                <option value="saved">Save (Interested)</option>
-                                <option value="applied">Mark as Applied</option>
-                                <option value="interview">In Interview</option>
-                            </select>
-                        </div>
-                    </div>
-
-                </div>
-
-            </div>
-        </div>
                                 <option value="" disabled selected>📌 Add to Tracker...</option>
                                 <option value="saved">Save (Interested)</option>
                                 <option value="applied">Mark as Applied</option>
@@ -581,7 +580,7 @@
                 card.style.display = 'block';
             } else if (filterKey === 'high' || filterKey === 'med' || filterKey === 'expl') {
                 card.style.display = (card.dataset.tier === filterKey) ? 'block' : 'none';
-            } else if (filterKey === 'codex' || filterKey === 'live_feed' || filterKey === 'career_portal') {
+            } else if (filterKey === 'codex' || filterKey === 'ats_portal' || filterKey === 'live_feed' || filterKey === 'career_portal') {
                 card.style.display = (card.dataset.sourceType === filterKey) ? 'block' : 'none';
             }
         });

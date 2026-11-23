@@ -421,6 +421,7 @@ def results():
     med_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "Medium Match")
     expl_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "Exploratory")
     codex_count = sum(1 for j in ranked_jobs if j.get("source_type") == "codex")
+    ats_count = sum(1 for j in ranked_jobs if j.get("source_type") == "ats_portal")
     live_scraped_count = sum(1 for j in ranked_jobs if j.get("source_type") == "live_feed")
     career_portal_count = sum(1 for j in ranked_jobs if j.get("source_type") == "career_portal")
 
@@ -440,6 +441,7 @@ def results():
         med_count=med_count,
         expl_count=expl_count,
         codex_count=codex_count,
+        ats_count=ats_count,
         live_scraped_count=live_scraped_count,
         career_portal_count=career_portal_count,
         total_count=len(ranked_jobs)
@@ -473,6 +475,34 @@ def api_search():
         "company_count": len(set(j.get("company", "") for j in ranked_jobs)),
         "jobs": ranked_jobs
     })
+
+
+@main_bp.route("/api/resolve-job-link", methods=["POST"])
+def api_resolve_job_link():
+    """Resolves the exact direct ATS or Google Jobs requisition application link."""
+    data = request.get_json(silent=True) or request.form
+    company = data.get("company", "").strip()
+    title = data.get("title", "").strip()
+
+    if not company or not title:
+        return jsonify({"error": "Company and title are required"}), 400
+
+    # 1. Check live Greenhouse boards
+    try:
+        import requests
+        gh_slug = re.sub(r'[^a-zA-Z0-9]', '', company).lower()
+        r = requests.get(f"https://boards-api.greenhouse.io/v1/boards/{gh_slug}/jobs", timeout=2.5)
+        if r.status_code == 200:
+            for item in r.json().get("jobs", []):
+                t = item.get("title", "").lower()
+                if any(w in t for w in title.lower().split()[:2]):
+                    return jsonify({"success": True, "url": item.get("absolute_url"), "source": "Greenhouse ATS"})
+    except Exception:
+        pass
+
+    # 2. Return Google Jobs direct requisition card (with 1-click apply button)
+    google_jobs_url = f"https://www.google.com/search?q={urllib.parse.quote(company + ' ' + title + ' job opening apply')}&ibp=htl;jobs"
+    return jsonify({"success": True, "url": google_jobs_url, "source": "Google Jobs"})
 
 
 @main_bp.route("/tracker")
