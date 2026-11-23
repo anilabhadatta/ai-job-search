@@ -72,15 +72,31 @@
             </div>
 
             <!-- Parameters Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 <!-- Target Region -->
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">2. Target Region & Companies</label>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">2. Target Region</label>
                     <div class="relative">
-                        <select name="region" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 appearance-none">
-                            <option value="All" selected>🌐 All (Indian Tech Hubs & Global Remote)</option>
-                            <option value="India">🇮🇳 India Tech Hubs (Bangalore, Hyd, Pune, NCR)</option>
-                            <option value="Global Remote">🌍 Global Remote (US/EU Worldwide Openings)</option>
+                        <select name="region" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 appearance-none">
+                            <option value="All" selected>🌐 All (India & Global)</option>
+                            <option value="India">🇮🇳 India Tech Hubs</option>
+                            <option value="Global Remote">🌍 Global Remote</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recency Window -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">3. Recency Filter</label>
+                    <div class="relative">
+                        <select name="max_days" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 appearance-none">
+                            <option value="7" selected>⚡ Last 7 Days (Fresh)</option>
+                            <option value="14">📅 Last 14 Days</option>
+                            <option value="30">📆 Last 30 Days</option>
+                            <option value="0">🌐 All Time</option>
                         </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
                             <i data-lucide="chevron-down" class="w-4 h-4"></i>
@@ -90,9 +106,9 @@
 
                 <!-- Role Focus / Keywords -->
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">3. Role Focus / Specialization</label>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">4. Role Specialization</label>
                     <div class="relative">
-                        <input type="text" name="role_query" value="Backend" placeholder="e.g. Backend, Distributed Systems, SDE-2" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500">
+                        <input type="text" name="role_query" value="Backend" placeholder="e.g. Backend, SDE-2" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
                             <i data-lucide="search" class="w-4 h-4"></i>
                         </div>

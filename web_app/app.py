@@ -92,6 +92,7 @@ def index():
 def upload_cv():
     region = request.form.get("region", "All")
     role_query = request.form.get("role_query", "Backend")
+    max_days = int(request.form.get("max_days", 7))
     existing_file = request.form.get("existing_file")
 
     target_path = None
@@ -106,7 +107,6 @@ def upload_cv():
             filename = secure_filename(file.filename)
             target_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(target_path)
-            # Also copy to cv/ folder for persistence
             try:
                 import shutil
                 shutil.copy(target_path, os.path.join(CV_FOLDER, filename))
@@ -119,10 +119,10 @@ def upload_cv():
 
     try:
         candidate_data = CVParser.parse(target_path)
-        # Store in session (exclude raw text to keep session lightweight)
         session["candidate"] = {k: v for k, v in candidate_data.items() if k != "raw_text"}
         session["region"] = region
         session["role_query"] = role_query
+        session["max_days"] = max_days
         session["cv_filename"] = os.path.basename(target_path)
 
         flash(f"Successfully processed CV for {candidate_data['name']}!", "success")
@@ -141,17 +141,21 @@ def results():
 
     region = request.args.get("region") or session.get("region", "All")
     role_query = request.args.get("role_query") or session.get("role_query", "Backend")
+    max_days_raw = request.args.get("max_days")
+    max_days = int(max_days_raw) if max_days_raw and max_days_raw.isdigit() else session.get("max_days", 7)
+    sort_by = request.args.get("sort_by", "match_desc")
 
-    # Fetch jobs
+    # Fetch jobs (strictly scoped to max_days, default 7 days)
     jobs = JobSearcher.search(
         candidate_skills=candidate.get("skills", []),
         region_filter=region,
         role_query=role_query,
-        limit=30
+        max_days=max_days,
+        limit=50
     )
 
     # Score and rank jobs
-    ranked_jobs = JobMatcher.rank_all(candidate, jobs)
+    ranked_jobs = JobMatcher.rank_all(candidate, jobs, sort_by=sort_by)
 
     # Compute high/medium/low match counts
     high_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "High Match")
@@ -164,6 +168,8 @@ def results():
         jobs=ranked_jobs,
         region=region,
         role_query=role_query,
+        max_days=max_days,
+        sort_by=sort_by,
         high_count=high_count,
         med_count=med_count,
         expl_count=expl_count,
@@ -180,14 +186,17 @@ def api_search():
     data = request.get_json() or {}
     region = data.get("region", session.get("region", "All"))
     role_query = data.get("role_query", session.get("role_query", "Backend"))
+    max_days = int(data.get("max_days", session.get("max_days", 7)))
+    sort_by = data.get("sort_by", "match_desc")
 
     jobs = JobSearcher.search(
         candidate_skills=candidate.get("skills", []),
         region_filter=region,
         role_query=role_query,
-        limit=30
+        max_days=max_days,
+        limit=50
     )
-    ranked_jobs = JobMatcher.rank_all(candidate, jobs)
+    ranked_jobs = JobMatcher.rank_all(candidate, jobs, sort_by=sort_by)
 
     return jsonify({
         "success": True,
@@ -275,19 +284,22 @@ def export_results():
 
     region = session.get("region", "All")
     role_query = session.get("role_query", "Backend")
+    max_days = int(request.args.get("max_days", 7))
+    sort_by = request.args.get("sort_by", "match_desc")
 
     jobs = JobSearcher.search(
         candidate_skills=candidate.get("skills", []),
         region_filter=region,
         role_query=role_query,
+        max_days=max_days,
         limit=50
     )
-    ranked = JobMatcher.rank_all(candidate, jobs)
+    ranked = JobMatcher.rank_all(candidate, jobs, sort_by=sort_by)
 
     fmt = request.args.get("format", "json").lower()
     if fmt == "csv":
         output = io.StringIO()
-        fieldnames = ["match_score", "match_tier", "company", "title", "location", "salary_range", "url", "matched_skills"]
+        fieldnames = ["match_score", "match_tier", "company", "title", "location", "salary_range", "posted_date", "url", "matched_skills"]
         writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for j in ranked:
