@@ -15,8 +15,8 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 - **Location:** India (Open to Bangalore, Hyderabad, Pune, NCR, Remote India & Global Remote)
 - **Phone:** +91-9641340674
 - **Email:** aryashreemazumder31@gmail.com
-- **LinkedIn:** https://www.linkedin.com/in/aryashreemazumder
-- **GitHub:** https://github.com/aryashreemazumder
+- **LinkedIn:** https://www.linkedin.com/in/aryashree-mazumder
+- **GitHub:** https://github.com/arya31
 - **Domain:** DevOps / Cloud Engineer (4.0 YoE)
 - **Status:** Employed @ Juspay
 - **Languages:**

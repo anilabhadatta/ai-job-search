@@ -3,7 +3,8 @@ Flask Web Application for AI Job Search
 Provides a web interface for CV upload, job search across Indian & Global tech companies,
 AI fit scoring, manual application verification, and application tracking.
 Supports configurable URL context / base prefix (e.g. /ai-job-search).
-Keeps profile synchronized with Claude Code CLI (/scrape, /rank, /apply).
+Keeps profile synchronized with Claude Code CLI (/scrape, /rank, /apply) and
+auto-executes Claude CLI upon upload.
 """
 
 import os
@@ -21,6 +22,7 @@ from web_app.services.job_searcher import JobSearcher
 from web_app.services.job_matcher import JobMatcher
 from web_app.services.tracker_service import TrackerService
 from web_app.services.claude_sync import sync_to_claude_cli
+from web_app.services.claude_runner import ClaudeRunner
 
 # Base directories
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -122,12 +124,16 @@ def upload_cv():
     try:
         candidate_data = CVParser.parse(target_path)
         
-        # Determine role focus dynamically from CV if not manually overridden
+        # Determine role focus dynamically from CV
         if not role_query or role_query == "auto":
             role_query = candidate_data.get("primary_domain", "Software Engineer")
 
         # Automatically synchronize profile with Claude Code CLI
         sync_to_claude_cli(candidate_data)
+
+        # Automatically trigger Claude Code CLI in background with graceful fallback
+        claude_status = ClaudeRunner.execute_claude_pipeline(candidate_data, timeout_sec=8)
+        session["claude_status"] = claude_status
 
         session["candidate"] = {k: v for k, v in candidate_data.items() if k != "raw_text"}
         session["region"] = region
@@ -149,19 +155,28 @@ def results():
         flash("Please upload your CV first.", "info")
         return redirect(url_for("main.index"))
 
+    # Sanitize skills to ensure no legacy cached single-letter "C"
+    if "skills" in candidate:
+        candidate["skills"] = [s for s in candidate.get("skills", []) if s != "C"]
+        session["candidate"] = candidate
+
     region = request.args.get("region") or session.get("region", "All")
     role_query = request.args.get("role_query") or session.get("role_query", candidate.get("primary_domain", "Backend"))
     max_days_raw = request.args.get("max_days")
     max_days = int(max_days_raw) if max_days_raw and max_days_raw.isdigit() else session.get("max_days", 7)
     sort_by = request.args.get("sort_by", "match_desc")
+    claude_status = session.get("claude_status")
+    if not claude_status:
+        claude_status = ClaudeRunner.execute_claude_pipeline(candidate, timeout_sec=5)
+        session["claude_status"] = claude_status
 
-    # Fetch jobs (dynamically scoped to candidate's domain & max_days)
+    # Fetch jobs across the expanded 70+ company catalog & live feeds
     jobs = JobSearcher.search(
         candidate_skills=candidate.get("skills", []),
         region_filter=region,
         role_query=role_query,
         max_days=max_days,
-        limit=50
+        limit=70
     )
 
     # Score and rank jobs
@@ -184,6 +199,7 @@ def results():
         sort_by=sort_by,
         company_count=company_count,
         unique_companies=unique_companies,
+        claude_status=claude_status,
         high_count=high_count,
         med_count=med_count,
         expl_count=expl_count,
@@ -208,7 +224,7 @@ def api_search():
         region_filter=region,
         role_query=role_query,
         max_days=max_days,
-        limit=50
+        limit=70
     )
     ranked_jobs = JobMatcher.rank_all(candidate, jobs, sort_by=sort_by)
 
@@ -307,7 +323,7 @@ def export_results():
         region_filter=region,
         role_query=role_query,
         max_days=max_days,
-        limit=50
+        limit=70
     )
     ranked = JobMatcher.rank_all(candidate, jobs, sort_by=sort_by)
 
