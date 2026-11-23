@@ -36,25 +36,42 @@ Configured with URL context prefix: **`/ai-job-search`** (e.g. `http://localhost
 
 ---
 
-## Quick Start (Local)
+## Quick Start
 
-### 1. Launch the Web Application
+### Linux / macOS (Setup & Server in 1 Command)
+```bash
+chmod +x start_linux.sh
+./start_linux.sh
+```
+*Note: `start_linux.sh` automatically checks dependencies, creates `.venv`, installs requirements, and skips setup on subsequent runs for instant launches.*
+
+### Windows
+```cmd
+start_web.bat
+```
+or via PowerShell:
+```powershell
+.\start_web.ps1
+```
+
+### Manual Launch
 ```bash
 python run_web.py
 ```
 Open **[http://localhost:5000/ai-job-search](http://localhost:5000/ai-job-search)** in your browser.
 *(Visiting `http://localhost:5000/` automatically redirects to `/ai-job-search/`)*
 
-### 2. Custom Port or Context
+### Custom Port or Context
 ```bash
-# Run on custom port 8080 with the /ai-job-search context:
-python run_web.py --port 8080
+# Run on custom port 8080:
+./start_linux.sh --port 8080
+# or on Windows: python run_web.py --port 8080
 
 # Run with custom URL context:
 python run_web.py --url-context /my-portal
 
 # Run with production Waitress WSGI server:
-python run_web.py --prod --port 5000
+./start_linux.sh --prod --port 5000
 ```
 
 ---

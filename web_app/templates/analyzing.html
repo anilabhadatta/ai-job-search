@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Analyzing & Matching Jobs | AI Job Search{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-12 px-4 text-center space-y-8">
+
+    <!-- Top Badge -->
+    <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold tracking-wide uppercase">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>AI Pipeline Active</span>
+    </div>
+
+    <!-- Header -->
+    <div class="space-y-2">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            Matching Opportunities...
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-400 max-w-md mx-auto" id="subHeading">
+            Scanning 70+ top Indian software companies, global remote teams, and live AI discoveries.
+        </p>
+    </div>
+
+    <!-- Central Radar Pulse Animation -->
+    <div class="relative w-36 h-36 mx-auto flex items-center justify-center">
+        <!-- Concentric Pulsing Rings -->
+        <div class="absolute inset-0 rounded-full border border-emerald-500/20 animate-ping" style="animation-duration: 2.5s;"></div>
+        <div class="absolute inset-4 rounded-full border border-purple-500/30 animate-ping" style="animation-duration: 3s; animation-delay: 0.5s;"></div>
+        <div class="absolute inset-8 rounded-full border border-emerald-500/40 animate-pulse"></div>
+        
+        <!-- Central Glow Orb -->
+        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-purple-600 shadow-xl shadow-emerald-500/30 flex items-center justify-center border border-white/20 transform hover:scale-105 transition">
+            <i data-lucide="sparkles" class="w-9 h-9 text-slate-950 animate-bounce" id="pulseIcon"></i>
+        </div>
+    </div>
+
+    <!-- Progress Card -->
+    <div class="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-6 text-left">
+        
+        <!-- Progress Bar and Percentage -->
+        <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs font-semibold">
+                <span class="text-slate-300 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="stageLabel">Initializing pipeline...</span>
+                </span>
+                <span class="text-emerald-400 font-mono text-sm" id="progressPercentage">5%</span>
+            </div>
+            
+            <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-800 p-0.5">
+                <div id="progressBar" class="bg-gradient-to-r from-emerald-500 via-teal-400 to-purple-500 h-full rounded-full transition-all duration-500 ease-out" style="width: 5%"></div>
+            </div>
+        </div>
+
+        <!-- Pipeline Steps Checklist -->
+        <div class="space-y-3 pt-2 border-t border-slate-800/80 text-xs">
+            <div id="step-profile" class="flex items-center space-x-3 text-slate-400">
+                <div class="step-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] font-bold">1</div>
+                <span>Candidate Profile & Skills Configuration</span>
+            </div>
+
+            <div id="step-codex" class="flex items-center space-x-3 text-slate-400">
+                <div class="step-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] font-bold">2</div>
+                <span>OpenAI Codex Live Web Job Discovery (ChatGPT Plus)</span>
+            </div>
+
+            <div id="step-portals" class="flex items-center space-x-3 text-slate-400">
+                <div class="step-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] font-bold">3</div>
+                <span>Scanning 70+ Indian Tech Giants & Live Remote Feeds</span>
+            </div>
+
+            <div id="step-ranking" class="flex items-center space-x-3 text-slate-400">
+                <div class="step-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] font-bold">4</div>
+                <span>AI Fit Scoring & Pre-Apply Gap Checks</span>
+            </div>
+
+            <div id="step-advice" class="flex items-center space-x-3 text-slate-400">
+                <div class="step-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] font-bold">5</div>
+                <span>Strategic Application Advisory</span>
+            </div>
+        </div>
+
+        <!-- Error Container (Hidden by default) -->
+        <div id="errorBox" class="hidden p-4 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs space-y-2">
+            <div class="font-bold flex items-center space-x-2">
+                <i data-lucide="alert-circle" class="w-4 h-4 text-red-400"></i>
+                <span id="errorMessage">An error occurred during search.</span>
+            </div>
+            <a href="{{ url_for('main.index') }}" class="inline-block mt-2 px-3 py-1.5 rounded-lg bg-red-600 text-white font-semibold text-xs hover:bg-red-500 transition">
+                Return to Home
+            </a>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const taskId = "{{ task_id }}";
+    const statusUrl = "{{ url_for('main.api_task_status', task_id=task_id) }}";
+    const resultsBaseUrl = "{{ url_for('main.results') }}";
+
+    function setStepState(elementId, state) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        const icon = el.querySelector(".step-icon");
+
+        if (state === "active") {
+            el.className = "flex items-center space-x-3 text-white font-semibold";
+            if (icon) {
+                icon.className = "step-icon w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[10px] font-bold shadow-md shadow-emerald-500/40 animate-pulse";
+            }
+        } else if (state === "completed") {
+            el.className = "flex items-center space-x-3 text-emerald-300";
+            if (icon) {
+                icon.className = "step-icon w-5 h-5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-400 flex items-center justify-center text-[10px] font-bold";
+                icon.innerHTML = "✓";
+            }
+        } else {
+            el.className = "flex items-center space-x-3 text-slate-500";
+            if (icon) {
+                icon.className = "step-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500";
+            }
+        }
+    }
+
+    async function pollStatus() {
+        try {
+            const resp = await fetch(statusUrl);
+            if (!resp.ok) {
+                throw new Error("HTTP error " + resp.status);
+            }
+            const data = await resp.json();
+
+            // Update Stage and Progress
+            document.getElementById("stageLabel").textContent = data.stage || "Processing...";
+            const pct = Math.max(5, Math.min(100, data.progress || 5));
+            document.getElementById("progressPercentage").textContent = pct + "%";
+            document.getElementById("progressBar").style.width = pct + "%";
+
+            // Update Checklist highlights based on progress
+            if (pct >= 15) setStepState("step-profile", pct > 20 ? "completed" : "active");
+            if (pct >= 30) setStepState("step-codex", pct > 45 ? "completed" : "active");
+            if (pct >= 60) setStepState("step-portals", pct > 75 ? "completed" : "active");
+            if (pct >= 80) setStepState("step-ranking", pct > 90 ? "completed" : "active");
+            if (pct >= 90) setStepState("step-advice", pct >= 100 ? "completed" : "active");
+
+            if (data.status === "completed") {
+                document.getElementById("progressBar").style.width = "100%";
+                document.getElementById("progressPercentage").textContent = "100%";
+                setStepState("step-advice", "completed");
+                
+                // Redirect smoothly to results page
+                setTimeout(() => {
+                    window.location.href = `${resultsBaseUrl}?task_id=${taskId}`;
+                }, 400);
+                return;
+            }
+
+            if (data.status === "failed") {
+                document.getElementById("errorBox").classList.remove("hidden");
+                document.getElementById("errorMessage").textContent = data.error || "Failed to process jobs.";
+                return;
+            }
+
+            // Continue polling
+            setTimeout(pollStatus, 500);
+
+        } catch (err) {
+            console.error("Polling error:", err);
+            // Retry polling after brief pause
+            setTimeout(pollStatus, 1000);
+        }
+    }
+
+    // Start polling immediately
+    document.addEventListener("DOMContentLoaded", () => {
+        pollStatus();
+    });
+</script>
+{% endblock %}

@@ -23,6 +23,7 @@ from web_app.services.job_matcher import JobMatcher
 from web_app.services.tracker_service import TrackerService
 from web_app.services.claude_sync import sync_to_claude_cli
 from web_app.services.claude_runner import ClaudeRunner
+from web_app.services.task_manager import TaskManager
 
 # Base directories
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -141,15 +142,111 @@ def upload_cv():
         if review_skills:
             return redirect(url_for("main.review_skills_view"))
 
-        # If review not requested, execute pipeline immediately
-        claude_status = ClaudeRunner.execute_claude_pipeline(candidate_data, timeout_sec=8)
-        session["claude_status"] = claude_status
-
-        flash(f"Processed CV for {candidate_data['name']} ({candidate_data.get('primary_domain', 'Software Engineer')})!", "success")
-        return redirect(url_for("main.results"))
+        # If review not requested, execute pipeline asynchronously in background
+        task_id = TaskManager.start_pipeline_async(
+            candidate_data=candidate_data,
+            run_codex=True,
+            min_lpa=0.0,
+            region=region,
+            role_query=role_query,
+            max_days=max_days
+        )
+        return redirect(url_for("main.analyzing_view", task_id=task_id))
     except Exception as e:
         flash(f"Failed to parse CV: {str(e)}", "error")
         return redirect(url_for("main.index"))
+
+
+@main_bp.route("/analyzing")
+def analyzing_view():
+    task_id = request.args.get("task_id")
+    if not task_id:
+        return redirect(url_for("main.index"))
+    return render_template("analyzing.html", task_id=task_id)
+
+
+@main_bp.route("/api/tasks/<task_id>/status")
+def api_task_status(task_id: str):
+    task = TaskManager.get_task(task_id)
+    if not task:
+        return jsonify({"status": "failed", "error": "Task not found", "progress": 0}), 404
+    return jsonify({
+        "task_id": task["task_id"],
+        "status": task["status"],
+        "progress": task.get("progress", 0),
+        "stage": task.get("stage", ""),
+        "error": task.get("error")
+    })
+
+
+@main_bp.route("/api/tasks/start", methods=["POST"])
+def api_start_task():
+    """Start an asynchronous job discovery task via JSON API."""
+    data = request.get_json(silent=True) or request.form
+    candidate = data.get("candidate") or session.get("candidate")
+    if not candidate:
+        return jsonify({"error": "No candidate profile provided"}), 400
+
+    run_codex = str(data.get("run_codex", "true")).lower() in ("true", "1", "yes")
+    try:
+        min_lpa = float(data.get("min_lpa", 0))
+    except Exception:
+        min_lpa = 0.0
+    region = data.get("region", "All")
+    role_query = data.get("role_query") or candidate.get("primary_domain", "Backend")
+    try:
+        max_days = int(data.get("max_days", 7))
+    except Exception:
+        max_days = 7
+
+    task_id = TaskManager.start_pipeline_async(
+        candidate_data=candidate,
+        run_codex=run_codex,
+        min_lpa=min_lpa,
+        region=region,
+        role_query=role_query,
+        max_days=max_days
+    )
+    return jsonify({"success": True, "task_id": task_id, "status": "running"})
+
+
+@main_bp.route("/api/rematch-async", methods=["POST"])
+def api_rematch_async():
+    """Async endpoint for inline re-matching from results page drawer."""
+    data = request.get_json(silent=True) or request.form
+    candidate = session.get("candidate", {})
+
+    raw_skills = data.get("custom_skills") or data.get("skills") or ""
+    if raw_skills:
+        skills = [s.strip() for s in raw_skills.split(",") if s.strip() and s.strip() != "C"]
+        if skills:
+            candidate["skills"] = skills
+
+    primary_domain = data.get("primary_domain") or candidate.get("primary_domain", "Backend")
+    candidate["primary_domain"] = primary_domain
+
+    try:
+        min_lpa = float(data.get("min_lpa", 0))
+    except Exception:
+        min_lpa = 0.0
+
+    region = data.get("region") or session.get("region", "All")
+    run_codex = str(data.get("run_codex", "false")).lower() in ("true", "1", "yes")
+
+    session["candidate"] = candidate
+    session["min_lpa"] = min_lpa
+    session["region"] = region
+    session["role_query"] = primary_domain
+
+    task_id = TaskManager.start_pipeline_async(
+        candidate_data=candidate,
+        run_codex=run_codex,
+        min_lpa=min_lpa,
+        region=region,
+        role_query=primary_domain,
+        max_days=7
+    )
+    return jsonify({"success": True, "task_id": task_id, "status": "running"})
 
 
 @main_bp.route("/review-skills")
@@ -238,28 +335,34 @@ def analyze_custom_skills():
     # Sync profile with CLAUDE.md
     sync_to_claude_cli(candidate)
 
-    # Live OpenAI Codex Job Discovery
-    if run_codex:
-        codex_jobs = ClaudeRunner.search_jobs_with_codex(
-            skills=skills,
-            role=primary_domain,
-            region=region,
-            limit=4,
-            timeout_sec=25
-        )
-        if codex_jobs:
-            session["codex_jobs"] = codex_jobs
-            flash(f"OpenAI Codex (ChatGPT Plus) discovered {len(codex_jobs)} active jobs with direct apply links!", "success")
+    # Launch asynchronous background pipeline (Codex AI + concurrent feeds + ranking)
+    task_id = TaskManager.start_pipeline_async(
+        candidate_data=candidate,
+        run_codex=run_codex,
+        min_lpa=min_lpa,
+        region=region,
+        role_query=primary_domain,
+        max_days=7
+    )
 
-    # Fetch strategic advice from Codex
-    claude_status = ClaudeRunner.execute_claude_pipeline(candidate, timeout_sec=12)
-    session["claude_status"] = claude_status
-
-    return redirect(url_for("main.results", min_lpa=min_lpa, region=region))
+    return redirect(url_for("main.analyzing_view", task_id=task_id))
 
 
 @main_bp.route("/results")
 def results():
+    task_id = request.args.get("task_id")
+    task = TaskManager.get_task(task_id) if task_id else None
+
+    # If coming from an async task, hydrate session from the completed task
+    if task and task.get("status") == "completed":
+        if task.get("candidate"):
+            session["candidate"] = task["candidate"]
+        session["codex_jobs"] = task.get("codex_jobs", [])
+        session["claude_status"] = task.get("claude_status")
+        session["min_lpa"] = task.get("min_lpa", 0.0)
+        session["region"] = task.get("region", "All")
+        session["role_query"] = task.get("role_query", "Backend")
+
     candidate = session.get("candidate")
     if not candidate:
         flash("Please upload your CV first.", "info")
@@ -283,27 +386,27 @@ def results():
 
     sort_by = request.args.get("sort_by", "match_desc")
     claude_status = session.get("claude_status")
-    # Upgrade to Codex (ChatGPT Plus) if not yet loaded or if holding legacy status
-    if not claude_status or claude_status.get("provider") != "codex":
-        claude_status = ClaudeRunner.execute_claude_pipeline(candidate, timeout_sec=12)
-        session["claude_status"] = claude_status
 
-    # Get cached Codex jobs from session
-    codex_jobs = session.get("codex_jobs", [])
+    # If the async task already ranked jobs with matching filters, use them instantly!
+    if task and task.get("ranked_jobs") and not request.args.get("min_lpa") and not request.args.get("sort_by"):
+        ranked_jobs = task["ranked_jobs"]
+    else:
+        # Get cached Codex jobs from session
+        codex_jobs = session.get("codex_jobs", [])
 
-    # Fetch jobs across the expanded 70+ company catalog, live feeds & Codex discoveries
-    jobs = JobSearcher.search(
-        candidate_skills=candidate.get("skills", []),
-        region_filter=region,
-        role_query=role_query,
-        max_days=max_days,
-        min_lpa=min_lpa,
-        codex_jobs=codex_jobs,
-        limit=75
-    )
+        # Fetch jobs across the expanded 70+ company catalog, live feeds & Codex discoveries
+        jobs = JobSearcher.search(
+            candidate_skills=candidate.get("skills", []),
+            region_filter=region,
+            role_query=role_query,
+            max_days=max_days,
+            min_lpa=min_lpa,
+            codex_jobs=codex_jobs,
+            limit=75
+        )
 
-    # Score and rank jobs
-    ranked_jobs = JobMatcher.rank_all(candidate, jobs, sort_by=sort_by)
+        # Score and rank jobs
+        ranked_jobs = JobMatcher.rank_all(candidate, jobs, sort_by=sort_by)
 
     # Calculate metrics
     unique_companies = sorted(list(set(j.get("company", "").strip() for j in ranked_jobs if j.get("company"))))

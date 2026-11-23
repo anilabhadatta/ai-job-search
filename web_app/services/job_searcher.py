@@ -1085,15 +1085,22 @@ class JobSearcher:
         if region_filter in ["All", "Global Remote"]:
             all_jobs.extend(CURATED_GLOBAL_REMOTE_JOBS)
 
-        # 3. Add Live WeWorkRemotely RSS Jobs
+        # 3 & 4. Concurrently fetch live remote feeds (WeWorkRemotely RSS & Remotive API)
         if region_filter in ["All", "Global Remote"]:
-            wwr_jobs = cls.fetch_wwr_rss_jobs(domain=role_query, limit=15)
-            all_jobs.extend(wwr_jobs)
-
-        # 4. Add Live Remotive API Jobs
-        if region_filter in ["All", "Global Remote"]:
-            remotive_jobs = cls.fetch_remotive_jobs(query=role_query, limit=15)
-            all_jobs.extend(remotive_jobs)
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                future_wwr = executor.submit(cls.fetch_wwr_rss_jobs, role_query, 15)
+                future_remotive = executor.submit(cls.fetch_remotive_jobs, role_query, 15)
+                try:
+                    wwr_jobs = future_wwr.result(timeout=6)
+                    all_jobs.extend(wwr_jobs)
+                except Exception:
+                    pass
+                try:
+                    remotive_jobs = future_remotive.result(timeout=6)
+                    all_jobs.extend(remotive_jobs)
+                except Exception:
+                    pass
 
         # Apply Recency Filter (default: max_days = 7)
         recent_jobs = []

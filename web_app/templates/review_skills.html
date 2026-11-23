@@ -258,9 +258,20 @@
         }
     });
 
-    // Initial populate
+    // Initial populate and loading feedback
     document.addEventListener('DOMContentLoaded', () => {
         syncHiddenInput();
+
+        const form = document.getElementById('skillsForm');
+        if (form) {
+            form.addEventListener('submit', () => {
+                const btn = document.getElementById('submitBtn');
+                if (btn) {
+                    btn.classList.add('opacity-80', 'cursor-wait');
+                    btn.innerHTML = `<span class="inline-block animate-spin mr-2">⚡</span><span>Starting AI Discovery...</span>`;
+                }
+            });
+        }
     });
 </script>
 {% endblock %}
