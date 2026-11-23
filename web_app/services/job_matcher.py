@@ -1,6 +1,7 @@
 """
 Job Matcher Service
-Evaluates and scores job postings against the candidate's extracted CV profile.
+Generic & Dynamic: Evaluates and scores job postings against ANY candidate CV profile
+(Frontend, Backend, Full Stack, DevOps/Cloud, Mobile, Data & AI).
 Generates accurate, differentiated match scores, skill comparisons, fit rationale,
 and 1-click LinkedIn referral outreach links.
 """
@@ -30,7 +31,7 @@ class JobMatcher:
             # Direct match
             if req_lower in cand_skills_lower:
                 is_match = True
-            # Substring/alias match (e.g. "AWS" matches "AWS SQS", "Postgres" matches "PostgreSQL")
+            # Substring/alias match (e.g. "React" matches "ReactJS", "AWS" matches "AWS SQS")
             elif any(req_lower in s or s in req_lower for s in cand_skills_lower):
                 is_match = True
             elif req_lower in cand_raw_text and len(req_lower) > 2:
@@ -50,20 +51,18 @@ class JobMatcher:
             if c_skill not in matched_required and c_lower in desc_text and len(c_lower) > 2:
                 bonus_skills.append(c_skill)
 
-        # Total matched skills to display (clean & deduplicated)
+        # Total matched skills to display
         all_matched_display = list(dict.fromkeys(matched_required + bonus_skills[:3]))
-        # Clean up any bare single-letter "C"
         all_matched_display = [s for s in all_matched_display if s != "C"]
 
         # 3. Calculate Core Skill Score (0 to 100)
         total_required_count = len(job_req_skills) if job_req_skills else 5
         base_skill_ratio = len(matched_required) / float(total_required_count)
         
-        # Skill score with small bonus for complementary candidate strengths
         bonus_points = min(10.0, len(bonus_skills) * 3.0)
         core_skill_score = min(100.0, (base_skill_ratio * 90.0) + bonus_points)
 
-        # If key required skills are missing, apply realistic deduction
+        # Proportional deduction for missing required skills
         if missing_required:
             core_skill_score = min(core_skill_score, 100.0 - (len(missing_required) * 6.5))
 
@@ -77,18 +76,30 @@ class JobMatcher:
         elif cand_yoe < min_yoe:
             gap = min_yoe - cand_yoe
             exp_score = max(35.0, 85.0 - (gap * 25.0))
-        else: # Overqualified / above band
+        else: # Above band
             exp_score = 88.0
 
         # 5. Role Alignment Score (0 to 100)
         title_lower = job.get("title", "").lower()
-        role_score = 85.0
-        if any(term in title_lower for term in ["backend", "distributed systems", "sde-2", "software engineer", "platform"]):
+        role_score = 80.0
+        cand_domain = candidate.get("primary_domain", "").lower()
+
+        # Check if job title matches candidate domain
+        if any(d in title_lower for d in ["frontend", "ui", "react"]) and "frontend" in cand_domain:
             role_score = 95.0
+        elif any(d in title_lower for d in ["backend", "distributed", "api", "systems"]) and "backend" in cand_domain:
+            role_score = 95.0
+        elif "full stack" in title_lower or "fullstack" in title_lower:
+            role_score = 92.0
+        elif any(d in title_lower for d in ["devops", "cloud", "infrastructure", "sre"]) and "devops" in cand_domain:
+            role_score = 95.0
+        elif any(d in title_lower for d in ["machine learning", "data", "ai"]) and "data" in cand_domain:
+            role_score = 95.0
+        elif "software engineer" in title_lower or "sde" in title_lower:
+            role_score = 88.0
 
         # 6. Composite Score (Weighted: 60% Skills + 25% Experience + 15% Role Alignment)
         final_score = round(0.60 * core_skill_score + 0.25 * exp_score + 0.15 * role_score)
-        # Cap at 95% for realistic ATS calibration
         final_score = int(min(95, max(30, final_score)))
 
         # 7. Tier Classification
@@ -105,26 +116,35 @@ class JobMatcher:
             tier_class = "info"
             badge_color = "bg-slate-500 text-white"
 
-        # 8. Fit Rationale Bullets
+        # 8. Dynamic Fit Rationale Bullets (tailored to ANY engineering domain)
         why_fits = []
-        if any(s.lower() in ["kafka", "microservices", "distributed systems", "aws", "aws msk", "aws sqs"] for s in all_matched_display):
+        if any(s.lower() in ["react", "reactjs", "next.js", "vue", "angular", "typescript", "tailwind"] for s in all_matched_display):
+            matched_ui = [s for s in all_matched_display if s.lower() in ["react", "reactjs", "next.js", "typescript", "tailwind", "vue", "angular"]]
+            why_fits.append(f"Strong UI alignment with your frontend stack: {', '.join(matched_ui)}.")
+        elif any(s.lower() in ["kafka", "microservices", "distributed systems", "aws", "aws msk", "aws sqs"] for s in all_matched_display):
             why_fits.append("Direct alignment with your Kafka, microservices & distributed messaging experience.")
-        if any(s.lower() in ["java", "go", "c++", "python"] for s in all_matched_display):
-            matched_langs = [s for s in all_matched_display if s.lower() in ["java", "go", "c++", "python"]]
-            why_fits.append(f"Strong language fit: {', '.join(matched_langs)}.")
+        elif any(s.lower() in ["kubernetes", "docker", "terraform", "ci/cd", "jenkins", "linux"] for s in all_matched_display):
+            why_fits.append("Solid infrastructure and container orchestration alignment.")
+        elif any(s.lower() in ["pytorch", "tensorflow", "machine learning", "pandas", "spark"] for s in all_matched_display):
+            why_fits.append("Strong data modeling and machine learning stack fit.")
+
+        if any(s.lower() in ["java", "go", "c++", "python", "typescript", "javascript", "c#"] for s in all_matched_display):
+            matched_langs = [s for s in all_matched_display if s.lower() in ["java", "go", "c++", "python", "typescript", "javascript", "c#"]]
+            why_fits.append(f"Primary language match: {', '.join(matched_langs)}.")
+
         if cand_yoe >= min_yoe:
             why_fits.append(f"Candidate YoE ({cand_yoe} yrs) satisfies required band ({min_yoe}-{max_yoe} yrs).")
         else:
-            why_fits.append("Solid core architecture and API engineering match.")
+            why_fits.append("Solid technical skill and engineering pattern match.")
 
         # 9. Realistic Checkpoints Before Applying
         checkpoints = []
         if missing_required:
-            checkpoints.append(f"Skill gap to check in posting: {', '.join(missing_required[:3])}.")
+            checkpoints.append(f"Skill gap to review: {', '.join(missing_required[:3])}.")
         if "india" in job.get("region", "").lower() or "india" in job.get("location", "").lower():
             checkpoints.append("Verify recruiter notice period bar (30-60 days typical for Indian tech recruiters).")
         else:
-            checkpoints.append("Check timezone overlap requirements (e.g. US/EU vs IST hours).")
+            checkpoints.append("Check timezone overlap requirements (e.g. US/EU vs local hours).")
 
         # 10. LinkedIn Referral Search Links
         company_clean = job.get("company", "").strip()
@@ -134,7 +154,6 @@ class JobMatcher:
         recruiter_link = f"https://www.linkedin.com/search/results/people/?keywords={recruiter_query}&origin=GLOBAL_SEARCH_HEADER"
         peer_link = f"https://www.linkedin.com/search/results/people/?keywords={hiring_mgr_query}&origin=GLOBAL_SEARCH_HEADER"
 
-        # Skills match ratio string
         match_ratio_str = f"{len(matched_required)}/{total_required_count} required skills"
 
         return {

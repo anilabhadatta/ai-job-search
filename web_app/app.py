@@ -3,6 +3,7 @@ Flask Web Application for AI Job Search
 Provides a web interface for CV upload, job search across Indian & Global tech companies,
 AI fit scoring, manual application verification, and application tracking.
 Supports configurable URL context / base prefix (e.g. /ai-job-search).
+Keeps profile synchronized with Claude Code CLI (/scrape, /rank, /apply).
 """
 
 import os
@@ -19,6 +20,7 @@ from web_app.services.cv_parser import CVParser
 from web_app.services.job_searcher import JobSearcher
 from web_app.services.job_matcher import JobMatcher
 from web_app.services.tracker_service import TrackerService
+from web_app.services.claude_sync import sync_to_claude_cli
 
 # Base directories
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -91,7 +93,7 @@ def index():
 @main_bp.route("/upload", methods=["POST"])
 def upload_cv():
     region = request.form.get("region", "All")
-    role_query = request.form.get("role_query", "Backend")
+    role_query = request.form.get("role_query", "auto")
     max_days = int(request.form.get("max_days", 7))
     existing_file = request.form.get("existing_file")
 
@@ -119,13 +121,21 @@ def upload_cv():
 
     try:
         candidate_data = CVParser.parse(target_path)
+        
+        # Determine role focus dynamically from CV if not manually overridden
+        if not role_query or role_query == "auto":
+            role_query = candidate_data.get("primary_domain", "Software Engineer")
+
+        # Automatically synchronize profile with Claude Code CLI
+        sync_to_claude_cli(candidate_data)
+
         session["candidate"] = {k: v for k, v in candidate_data.items() if k != "raw_text"}
         session["region"] = region
         session["role_query"] = role_query
         session["max_days"] = max_days
         session["cv_filename"] = os.path.basename(target_path)
 
-        flash(f"Successfully processed CV for {candidate_data['name']}!", "success")
+        flash(f"Processed CV for {candidate_data['name']} ({candidate_data.get('primary_domain', 'Software Engineer')})!", "success")
         return redirect(url_for("main.results"))
     except Exception as e:
         flash(f"Failed to parse CV: {str(e)}", "error")
@@ -140,12 +150,12 @@ def results():
         return redirect(url_for("main.index"))
 
     region = request.args.get("region") or session.get("region", "All")
-    role_query = request.args.get("role_query") or session.get("role_query", "Backend")
+    role_query = request.args.get("role_query") or session.get("role_query", candidate.get("primary_domain", "Backend"))
     max_days_raw = request.args.get("max_days")
     max_days = int(max_days_raw) if max_days_raw and max_days_raw.isdigit() else session.get("max_days", 7)
     sort_by = request.args.get("sort_by", "match_desc")
 
-    # Fetch jobs (strictly scoped to max_days, default 7 days)
+    # Fetch jobs (dynamically scoped to candidate's domain & max_days)
     jobs = JobSearcher.search(
         candidate_skills=candidate.get("skills", []),
         region_filter=region,
@@ -157,7 +167,9 @@ def results():
     # Score and rank jobs
     ranked_jobs = JobMatcher.rank_all(candidate, jobs, sort_by=sort_by)
 
-    # Compute high/medium/low match counts
+    # Calculate metrics
+    unique_companies = sorted(list(set(j.get("company", "").strip() for j in ranked_jobs if j.get("company"))))
+    company_count = len(unique_companies)
     high_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "High Match")
     med_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "Medium Match")
     expl_count = sum(1 for j in ranked_jobs if j.get("match_tier") == "Exploratory")
@@ -170,6 +182,8 @@ def results():
         role_query=role_query,
         max_days=max_days,
         sort_by=sort_by,
+        company_count=company_count,
+        unique_companies=unique_companies,
         high_count=high_count,
         med_count=med_count,
         expl_count=expl_count,
@@ -201,6 +215,7 @@ def api_search():
     return jsonify({
         "success": True,
         "count": len(ranked_jobs),
+        "company_count": len(set(j.get("company", "") for j in ranked_jobs)),
         "jobs": ranked_jobs
     })
 

@@ -1,6 +1,8 @@
 """
 CV Parser Service
-Extracts candidate identity, skills, experience, education, and YoE from resumes (PDF, TXT, MD).
+Generic & Dynamic: Extracts candidate identity, skills, experience, education,
+YoE, and primary domain from ANY software engineering CV (Frontend, Backend,
+Full Stack, DevOps/Cloud, Mobile, Data/ML/AI, QA, Security).
 """
 
 import os
@@ -18,28 +20,40 @@ try:
 except ImportError:
     pypdf = None
 
-# Curated skill taxonomy for software engineering
-SKILL_TAXONOMY = {
+# Comprehensive generic taxonomy across all software engineering tracks
+GENERIC_SKILL_TAXONOMY = {
     "Languages": [
-        "Java", "Python", "Go", "Golang", "C++", "C / C++", "Rust", "JavaScript", "TypeScript",
-        "Haskell", "ReScript", "Scala", "Kotlin", "Ruby", "SQL"
+        "Java", "Python", "Go", "Golang", "C++", "C#", "Rust", "JavaScript", "TypeScript",
+        "Haskell", "Scala", "Kotlin", "Swift", "Ruby", "PHP", "Dart", "SQL", "R", "C / C++"
     ],
-    "Frameworks & APIs": [
-        "React", "ReactJS", "Node.js", "Express", "Spring Boot", "Spring",
-        "FastAPI", "Django", "Flask", "gRPC", "REST APIs", "GraphQL"
+    "Frontend": [
+        "React", "ReactJS", "Next.js", "Vue", "Vue.js", "Angular", "Svelte", "Redux",
+        "Tailwind", "TailwindCSS", "HTML", "HTML5", "CSS", "CSS3", "Webpack", "Vite"
+    ],
+    "Backend & APIs": [
+        "Node.js", "Express", "Spring Boot", "Spring", "Django", "FastAPI", "Flask",
+        "Ruby on Rails", "ASP.NET", ".NET", "GraphQL", "gRPC", "REST APIs", "Microservices"
     ],
     "Databases & Storage": [
         "PostgreSQL", "MySQL", "Redis", "MongoDB", "Cassandra", "DynamoDB",
-        "Elasticsearch", "SQLite", "Kafka", "AWS MSK", "RabbitMQ"
+        "Elasticsearch", "SQLite", "Kafka", "AWS MSK", "RabbitMQ", "Snowflake"
     ],
     "Cloud & DevOps": [
-        "AWS", "Amazon Web Services", "Docker", "Kubernetes", "CI/CD", "Jenkins",
-        "Linux", "Git", "AWS SQS", "CloudWatch", "AWS Lambda", "Kibana", "VictoriaLogs", "Terraform"
+        "AWS", "Amazon Web Services", "Azure", "GCP", "Google Cloud", "Docker",
+        "Kubernetes", "K8s", "Terraform", "CI/CD", "Jenkins", "GitHub Actions",
+        "Linux", "Git", "CloudWatch", "Lambda", "AWS SQS", "Prometheus", "Grafana"
     ],
-    "Architecture & Concepts": [
-        "Distributed Systems", "Microservices", "System Design", "Scalability", "Data Modeling",
-        "Message Queues", "Event-Driven Architecture", "High Concurrency", "Low Latency",
-        "Object-Oriented Programming", "Functional Programming", "AI Agents"
+    "Data & AI/ML": [
+        "Machine Learning", "Deep Learning", "PyTorch", "TensorFlow", "Scikit-Learn",
+        "Pandas", "NumPy", "Spark", "Airflow", "LLMs", "Generative AI", "NLP", "AI Agents"
+    ],
+    "Mobile": [
+        "Android", "iOS", "Flutter", "React Native", "SwiftUI", "Jetpack Compose"
+    ],
+    "Architecture & Core": [
+        "Distributed Systems", "System Design", "Scalability", "Data Modeling",
+        "High Concurrency", "Low Latency", "Event-Driven Architecture",
+        "Object-Oriented Programming", "Functional Programming"
     ]
 }
 
@@ -54,7 +68,6 @@ class CVParser:
         ext = os.path.splitext(file_path)[1].lower()
 
         if ext == ".pdf":
-            # Try PyMuPDF first for cleanest text extraction
             if fitz is not None:
                 try:
                     doc = fitz.open(file_path)
@@ -64,14 +77,12 @@ class CVParser:
                 except Exception:
                     pass
 
-            # Fallback to pypdf
             if pypdf is not None:
                 reader = pypdf.PdfReader(file_path)
                 return "\n".join([page.extract_text() or "" for page in reader.pages])
 
             raise RuntimeError("Neither PyMuPDF nor pypdf is available to read PDF.")
 
-        # Text / Markdown files
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
 
@@ -104,8 +115,49 @@ class CVParser:
         return links
 
     @classmethod
+    def detect_primary_domain(cls, skills_by_category: Dict[str, List[str]], raw_text: str) -> str:
+        """Automatically detect the engineering domain from extracted skills and text."""
+        raw_lower = raw_text.lower()
+        counts = {
+            "Frontend": len(skills_by_category.get("Frontend", [])),
+            "Backend": len(skills_by_category.get("Backend & APIs", [])) + len(skills_by_category.get("Databases & Storage", [])),
+            "Data & AI": len(skills_by_category.get("Data & AI/ML", [])),
+            "Cloud & DevOps": len(skills_by_category.get("Cloud & DevOps", [])),
+            "Mobile": len(skills_by_category.get("Mobile", []))
+        }
+
+        # Bonus keyword mentions in text
+        if any(term in raw_lower for term in ["frontend", "ui developer", "react developer"]):
+            counts["Frontend"] += 3
+        if any(term in raw_lower for term in ["backend", "distributed systems", "api developer", "microservices"]):
+            counts["Backend"] += 3
+        if any(term in raw_lower for term in ["machine learning", "data scientist", "data engineer", "deep learning"]):
+            counts["Data & AI"] += 3
+        if any(term in raw_lower for term in ["devops", "sre", "site reliability", "cloud engineer", "infrastructure"]):
+            counts["Cloud & DevOps"] += 3
+        if any(term in raw_lower for term in ["mobile developer", "android developer", "ios developer"]):
+            counts["Mobile"] += 3
+
+        # Fullstack detection
+        if counts["Frontend"] >= 2 and counts["Backend"] >= 3:
+            return "Full Stack Engineer"
+
+        max_domain = max(counts, key=counts.get)
+        if counts[max_domain] == 0:
+            return "Software Engineer"
+
+        domain_map = {
+            "Frontend": "Frontend Engineer",
+            "Backend": "Backend Engineer",
+            "Data & AI": "Data & ML Engineer",
+            "Cloud & DevOps": "DevOps / Cloud Engineer",
+            "Mobile": "Mobile Engineer"
+        }
+        return domain_map.get(max_domain, "Software Engineer")
+
+    @classmethod
     def parse(cls, file_path: str) -> Dict[str, Any]:
-        """Full parsing pipeline on a resume file."""
+        """Full parsing pipeline on ANY resume file."""
         raw_text = cls.extract_text(file_path)
         extracted_links = cls.extract_links(file_path)
 
@@ -123,7 +175,7 @@ class CVParser:
         email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', raw_text)
         email = extracted_links.get("email") or (email_match.group(0) if email_match else "")
 
-        # 3. Phone (India + international patterns)
+        # 3. Phone
         phone_match = re.search(r'(?:\+?91[-\s]?)?[6789]\d{9}|(?:\+\d{1,3}[-\s]?)?\(?\d{3}\)?[-\s]?\d{3}[-\s]?\d{4}', raw_text)
         phone = phone_match.group(0).strip() if phone_match else ""
 
@@ -143,10 +195,9 @@ class CVParser:
         skills_by_category = {}
         raw_lower = raw_text.lower()
 
-        for category, skills in SKILL_TAXONOMY.items():
+        for category, skills in GENERIC_SKILL_TAXONOMY.items():
             matched_in_cat = []
             for skill in skills:
-                # Specific check for C / C++
                 if skill == "C / C++":
                     if re.search(r'\b(c\s*/\s*c\+\+|c\s+and\s+c\+\+|c,\s*c\+\+)\b', raw_lower):
                         matched_in_cat.append("C / C++")
@@ -163,8 +214,11 @@ class CVParser:
             if matched_in_cat:
                 skills_by_category[category] = matched_in_cat
 
-        # 6. Experience & YoE Estimation
-        yoe_match = re.search(r'(\d+)\+?\s*(?:years|yrs)\s*(?:of\s*)?(?:experience|exp|backend|software)?', raw_lower)
+        # 6. Detect Engineering Domain dynamically
+        primary_domain = cls.detect_primary_domain(skills_by_category, raw_text)
+
+        # 7. Experience & YoE Estimation
+        yoe_match = re.search(r'(\d+)\+?\s*(?:years|yrs)\s*(?:of\s*)?(?:experience|exp)?', raw_lower)
         estimated_yoe = float(yoe_match.group(1)) if yoe_match else 0.0
 
         if not estimated_yoe:
@@ -175,7 +229,7 @@ class CVParser:
                 for start_yr, end_yr in date_ranges:
                     s = int(start_yr)
                     e = int(end_yr) if end_yr else current_year
-                    if e >= s and (current_year - s) < 20:
+                    if e >= s and (current_year - s) < 25:
                         total_months += (e - s) * 12
                 if total_months > 0:
                     estimated_yoe = round(total_months / 12.0, 1)
@@ -184,25 +238,25 @@ class CVParser:
             estimated_yoe = 3.0
 
         if estimated_yoe >= 5:
-            seniority = "Senior Engineer / Tech Lead"
+            seniority = f"Senior {primary_domain}"
         elif estimated_yoe >= 2:
-            seniority = "Mid-Level Engineer (SDE-2)"
+            seniority = f"Mid-Level {primary_domain} (SDE-2)"
         else:
-            seniority = "Associate / Junior Engineer (SDE-1)"
+            seniority = f"Associate {primary_domain} (SDE-1)"
 
-        # 7. Current or Recent Company
+        # 8. Current Company Extraction
         companies = []
         for line in lines:
             line_clean = line.strip()
-            if any(term in line_clean.lower() for term in ["present", "software engineer", "developer", "architect"]) and "|" in line_clean:
+            if any(term in line_clean.lower() for term in ["present", "software engineer", "developer", "architect", "engineer"]) and "|" in line_clean:
                 parts = line_clean.split("|")
                 comp = parts[0].strip()
                 if 2 <= len(comp) <= 40 and not any(h in comp.lower() for h in ["summary", "skills", "experience", "education"]):
                     companies.append(comp)
 
-        current_company = companies[0] if companies else "Software Company"
+        current_company = companies[0] if companies else "Tech Company"
 
-        # 8. Summary
+        # 9. Summary
         summary = ""
         summary_idx = -1
         for i, line in enumerate(lines):
@@ -226,6 +280,8 @@ class CVParser:
             "summary": summary,
             "skills": skills_detected,
             "skills_by_category": skills_by_category,
+            "primary_domain": primary_domain,
+            "top_skills": skills_detected[:6],
             "estimated_yoe": estimated_yoe,
             "seniority_level": seniority,
             "current_company": current_company,

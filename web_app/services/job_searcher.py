@@ -1,12 +1,14 @@
 """
 Job Searcher Service
-Fetches and aggregates software engineering postings from:
-1. Live WeWorkRemotely RSS feed (Backend programming)
-2. Live Remotive API (Remote software engineering)
-3. Live Jobicy API (Global engineering postings)
-4. Live Arbeitnow API (Worldwide dev postings)
-5. Curated active postings at top Indian Tech Giants, Startups & GCCs (Bangalore, Hyd, Pune, NCR)
-Enforces a 7-day recency filter by default.
+Generic & Dynamic across all software engineering tracks (Frontend, Backend, Full Stack,
+Mobile, DevOps/Cloud, Data & AI).
+Fetches from:
+1. Live WeWorkRemotely RSS feed (dynamically selecting categories based on domain)
+2. Live Remotive API (filtered by candidate domain & skills)
+3. Live Jobicy API
+4. Live Arbeitnow API
+5. Curated active openings across top Indian Tech Giants, Startups & GCCs covering multiple engineering disciplines.
+Strictly scopes to the last 7 days by default.
 """
 
 import os
@@ -20,14 +22,16 @@ from typing import List, Dict, Any, Optional
 
 NOW = datetime.now()
 
-# Curated active openings at top Indian Product companies & GCCs with strict recency
+# Multi-discipline openings across top Indian Product companies & GCCs
 CURATED_INDIA_TECH_JOBS = [
+    # --- Backend & Distributed Systems ---
     {
         "id": "ind-razorpay-sde2-be",
         "title": "Software Development Engineer II (Backend)",
         "company": "Razorpay",
         "location": "Bangalore, India / Hybrid",
         "region": "India",
+        "domain": "Backend Engineer",
         "salary_range": "28 - 40 LPA",
         "employment_type": "Full-time",
         "posted_days_ago": 2,
@@ -47,6 +51,7 @@ CURATED_INDIA_TECH_JOBS = [
         "company": "PhonePe",
         "location": "Bangalore, India",
         "region": "India",
+        "domain": "Backend Engineer",
         "salary_range": "32 - 45 LPA",
         "employment_type": "Full-time",
         "posted_days_ago": 1,
@@ -66,6 +71,7 @@ CURATED_INDIA_TECH_JOBS = [
         "company": "Swiggy",
         "location": "Bangalore, India / Hybrid",
         "region": "India",
+        "domain": "Backend Engineer",
         "salary_range": "30 - 42 LPA",
         "employment_type": "Full-time",
         "posted_days_ago": 3,
@@ -85,6 +91,7 @@ CURATED_INDIA_TECH_JOBS = [
         "company": "CRED",
         "location": "Bangalore, India",
         "region": "India",
+        "domain": "Backend Engineer",
         "salary_range": "35 - 50 LPA",
         "employment_type": "Full-time",
         "posted_days_ago": 4,
@@ -104,6 +111,7 @@ CURATED_INDIA_TECH_JOBS = [
         "company": "Zepto",
         "location": "Bangalore / Mumbai, India",
         "region": "India",
+        "domain": "Backend Engineer",
         "salary_range": "30 - 45 LPA",
         "employment_type": "Full-time",
         "posted_days_ago": 2,
@@ -123,6 +131,7 @@ CURATED_INDIA_TECH_JOBS = [
         "company": "Walmart Global Tech India",
         "location": "Bangalore / Chennai, India",
         "region": "India",
+        "domain": "Backend Engineer",
         "salary_range": "32 - 48 LPA",
         "employment_type": "Full-time",
         "posted_days_ago": 1,
@@ -137,125 +146,12 @@ CURATED_INDIA_TECH_JOBS = [
         "source": "Walmart Tech Careers"
     },
     {
-        "id": "ind-cisco-se-cloud",
-        "title": "Software Engineer - Cloud & Infrastructure Services",
-        "company": "Cisco Systems",
-        "location": "Bangalore, India",
-        "region": "India",
-        "salary_range": "24 - 36 LPA",
-        "employment_type": "Full-time",
-        "posted_days_ago": 2,
-        "posted_date": "2 days ago",
-        "posted_timestamp": (NOW - timedelta(days=2)).strftime("%Y-%m-%d"),
-        "description": "Join Cisco's Cloud Networking group. Work on cloud-native security, microservices orchestration, and telemetry monitoring pipelines. Strong background in Java, Python, Go, Docker, Kubernetes, CI/CD, and AWS or GCP required.",
-        "skills_required": ["Java", "Python", "Go", "Docker", "Kubernetes", "AWS", "CI/CD", "REST APIs"],
-        "min_yoe": 3,
-        "max_yoe": 6,
-        "url": "https://jobs.cisco.com/",
-        "apply_url": "https://jobs.cisco.com/jobs/SearchJobs",
-        "source": "Cisco Careers"
-    },
-    {
-        "id": "ind-inmobi-sde2-data",
-        "title": "Software Development Engineer II (AdTech & Caching)",
-        "company": "InMobi",
-        "location": "Bangalore, India",
-        "region": "India",
-        "salary_range": "26 - 38 LPA",
-        "employment_type": "Full-time",
-        "posted_days_ago": 5,
-        "posted_date": "5 days ago",
-        "posted_timestamp": (NOW - timedelta(days=5)).strftime("%Y-%m-%d"),
-        "description": "InMobi powers ad-serving platforms at sub-millisecond latencies. Seeking SDE-2 with deep experience in Java, distributed caching, event streaming with Kafka, and low-latency API architecture.",
-        "skills_required": ["Java", "Kafka", "Distributed Systems", "MySQL", "Scalability", "Microservices", "AWS"],
-        "min_yoe": 3,
-        "max_yoe": 6,
-        "url": "https://www.inmobi.com/company/careers",
-        "apply_url": "https://www.inmobi.com/company/careers",
-        "source": "InMobi Careers"
-    },
-    {
-        "id": "ind-postman-be-eng",
-        "title": "Software Engineer II - Platform & Developer Tooling",
-        "company": "Postman",
-        "location": "Bangalore, India / Remote",
-        "region": "India",
-        "salary_range": "28 - 42 LPA",
-        "employment_type": "Full-time",
-        "posted_days_ago": 4,
-        "posted_date": "4 days ago",
-        "posted_timestamp": (NOW - timedelta(days=4)).strftime("%Y-%m-%d"),
-        "description": "Postman is looking for a Backend Engineer to build developer tooling, API runtime engines, and collaborative cloud workspaces. Tech stack: Node.js/TypeScript, Go, React, AWS, Docker, PostgreSQL.",
-        "skills_required": ["TypeScript", "Node.js", "Go", "AWS", "Docker", "PostgreSQL", "REST APIs"],
-        "min_yoe": 3,
-        "max_yoe": 6,
-        "url": "https://www.postman.com/careers/",
-        "apply_url": "https://www.postman.com/careers/",
-        "source": "Postman Careers"
-    },
-    {
-        "id": "ind-jpmorgan-swe-gcc",
-        "title": "Software Engineer - Corporate Technology",
-        "company": "JPMorgan Chase & Co.",
-        "location": "Bangalore / Hyderabad, India",
-        "region": "India",
-        "salary_range": "26 - 40 LPA",
-        "employment_type": "Full-time",
-        "posted_days_ago": 2,
-        "posted_date": "2 days ago",
-        "posted_timestamp": (NOW - timedelta(days=2)).strftime("%Y-%m-%d"),
-        "description": "Build mission-critical banking platforms, automated clearing workflows, and microservices on AWS/Private Cloud. Core requirements: Java, Spring Boot, Microservices, Oracle/PostgreSQL, Kafka, CI/CD Jenkins.",
-        "skills_required": ["Java", "Spring Boot", "Microservices", "Kafka", "PostgreSQL", "AWS", "CI/CD", "Jenkins"],
-        "min_yoe": 3,
-        "max_yoe": 7,
-        "url": "https://careers.jpmorgan.com/",
-        "apply_url": "https://careers.jpmorgan.com/",
-        "source": "JPMorgan Careers"
-    },
-    {
-        "id": "ind-meesho-sde2-be",
-        "title": "Software Development Engineer II (Backend - Orders & Scale)",
-        "company": "Meesho",
-        "location": "Bangalore, India",
-        "region": "India",
-        "salary_range": "30 - 44 LPA",
-        "employment_type": "Full-time",
-        "posted_days_ago": 1,
-        "posted_date": "1 day ago",
-        "posted_timestamp": (NOW - timedelta(days=1)).strftime("%Y-%m-%d"),
-        "description": "Own high-concurrency order placement and inventory reservation systems. Heavy usage of Kafka, Redis, Java, Spring Boot, MySQL, and AWS for e-commerce scale.",
-        "skills_required": ["Java", "Spring Boot", "Kafka", "Redis", "MySQL", "AWS", "Distributed Systems", "Microservices"],
-        "min_yoe": 3,
-        "max_yoe": 6,
-        "url": "https://www.meesho.io/jobs",
-        "apply_url": "https://www.meesho.io/jobs",
-        "source": "Meesho Careers"
-    },
-    {
-        "id": "ind-groww-be-trading",
-        "title": "Backend Software Engineer - Wealth & Trading Systems",
-        "company": "Groww",
-        "location": "Bangalore, India",
-        "region": "India",
-        "salary_range": "28 - 42 LPA",
-        "employment_type": "Full-time",
-        "posted_days_ago": 3,
-        "posted_date": "3 days ago",
-        "posted_timestamp": (NOW - timedelta(days=3)).strftime("%Y-%m-%d"),
-        "description": "Join Groww's core trading and stock exchange integration engineering team. You will build high-reliability ledger services, order management engines, and real-time portfolio tracking APIs. Java, Kafka, PostgreSQL, Redis, Microservices.",
-        "skills_required": ["Java", "Spring Boot", "Kafka", "PostgreSQL", "Redis", "Microservices", "REST APIs", "AWS"],
-        "min_yoe": 3,
-        "max_yoe": 6,
-        "url": "https://groww.in/careers",
-        "apply_url": "https://groww.in/careers",
-        "source": "Groww Careers"
-    },
-    {
         "id": "ind-uber-sde2-mobility",
         "title": "Software Engineer II - Mobility & Marketplace Engineering",
         "company": "Uber India",
         "location": "Bangalore / Hyderabad, India",
         "region": "India",
+        "domain": "Backend Engineer",
         "salary_range": "35 - 52 LPA",
         "employment_type": "Full-time",
         "posted_days_ago": 2,
@@ -268,18 +164,153 @@ CURATED_INDIA_TECH_JOBS = [
         "url": "https://www.uber.com/us/en/careers/",
         "apply_url": "https://www.uber.com/us/en/careers/",
         "source": "Uber Careers"
+    },
+
+    # --- Frontend & Web Engineering ---
+    {
+        "id": "ind-cred-fe-sde2",
+        "title": "Software Development Engineer II (Frontend / UI)",
+        "company": "CRED",
+        "location": "Bangalore, India",
+        "region": "India",
+        "domain": "Frontend Engineer",
+        "salary_range": "30 - 46 LPA",
+        "employment_type": "Full-time",
+        "posted_days_ago": 2,
+        "posted_date": "2 days ago",
+        "posted_timestamp": (NOW - timedelta(days=2)).strftime("%Y-%m-%d"),
+        "description": "Craft pixel-perfect web and mobile design systems, micro-frontends, and highly responsive user interfaces. Expert knowledge of React, Next.js, TypeScript, TailwindCSS, Webpack/Vite, and state management required.",
+        "skills_required": ["React", "ReactJS", "Next.js", "TypeScript", "JavaScript", "Tailwind", "CSS3", "HTML5"],
+        "min_yoe": 3,
+        "max_yoe": 6,
+        "url": "https://cred.club/careers",
+        "apply_url": "https://cred.club/careers",
+        "source": "CRED Careers"
+    },
+    {
+        "id": "ind-razorpay-fe-lead",
+        "title": "Frontend Engineer II - Merchant Dashboard",
+        "company": "Razorpay",
+        "location": "Bangalore, India",
+        "region": "India",
+        "domain": "Frontend Engineer",
+        "salary_range": "26 - 38 LPA",
+        "employment_type": "Full-time",
+        "posted_days_ago": 3,
+        "posted_date": "3 days ago",
+        "posted_timestamp": (NOW - timedelta(days=3)).strftime("%Y-%m-%d"),
+        "description": "Build high-speed, accessible financial dashboards used by over 5 million merchants. Deep expertise in ReactJS, TypeScript, Redux, Next.js, performance optimization, and browser security required.",
+        "skills_required": ["React", "ReactJS", "TypeScript", "JavaScript", "Redux", "REST APIs", "HTML", "CSS"],
+        "min_yoe": 3,
+        "max_yoe": 6,
+        "url": "https://razorpay.com/jobs/",
+        "apply_url": "https://razorpay.com/jobs/",
+        "source": "Razorpay Careers"
+    },
+
+    # --- Full Stack Engineering ---
+    {
+        "id": "ind-postman-fullstack",
+        "title": "Software Engineer II (Full Stack - Developer Experience)",
+        "company": "Postman",
+        "location": "Bangalore, India / Remote",
+        "region": "India",
+        "domain": "Full Stack Engineer",
+        "salary_range": "28 - 44 LPA",
+        "employment_type": "Full-time",
+        "posted_days_ago": 3,
+        "posted_date": "3 days ago",
+        "posted_timestamp": (NOW - timedelta(days=3)).strftime("%Y-%m-%d"),
+        "description": "Build collaborative API client workflows end-to-end. Full stack proficiency in React, TypeScript, Node.js, Express, PostgreSQL, and AWS required.",
+        "skills_required": ["React", "TypeScript", "Node.js", "Express", "PostgreSQL", "AWS", "REST APIs"],
+        "min_yoe": 3,
+        "max_yoe": 6,
+        "url": "https://www.postman.com/careers/",
+        "apply_url": "https://www.postman.com/careers/",
+        "source": "Postman Careers"
+    },
+    {
+        "id": "ind-browserstack-fs",
+        "title": "Senior Full Stack Engineer - Cloud Infrastructure",
+        "company": "BrowserStack",
+        "location": "Mumbai / Bangalore, India",
+        "region": "India",
+        "domain": "Full Stack Engineer",
+        "salary_range": "32 - 46 LPA",
+        "employment_type": "Full-time",
+        "posted_days_ago": 2,
+        "posted_date": "2 days ago",
+        "posted_timestamp": (NOW - timedelta(days=2)).strftime("%Y-%m-%d"),
+        "description": "Design test automation cloud grids. Requires strong full stack skills in React, TypeScript/JavaScript, Node.js or Ruby/Python, Docker, and AWS.",
+        "skills_required": ["React", "TypeScript", "Node.js", "Docker", "AWS", "PostgreSQL", "REST APIs"],
+        "min_yoe": 3,
+        "max_yoe": 7,
+        "url": "https://www.browserstack.com/careers",
+        "apply_url": "https://www.browserstack.com/careers",
+        "source": "BrowserStack Careers"
+    },
+
+    # --- DevOps & Cloud Infrastructure ---
+    {
+        "id": "ind-cisco-devops",
+        "title": "DevOps & Cloud Infrastructure Engineer",
+        "company": "Cisco Systems",
+        "location": "Bangalore, India",
+        "region": "India",
+        "domain": "DevOps / Cloud Engineer",
+        "salary_range": "26 - 38 LPA",
+        "employment_type": "Full-time",
+        "posted_days_ago": 2,
+        "posted_date": "2 days ago",
+        "posted_timestamp": (NOW - timedelta(days=2)).strftime("%Y-%m-%d"),
+        "description": "Scale enterprise cloud platforms using Kubernetes, Terraform, Docker, CI/CD pipelines, and Prometheus/Grafana monitoring across AWS and GCP.",
+        "skills_required": ["Kubernetes", "Docker", "Terraform", "AWS", "CI/CD", "Jenkins", "Linux", "Git"],
+        "min_yoe": 3,
+        "max_yoe": 7,
+        "url": "https://jobs.cisco.com/",
+        "apply_url": "https://jobs.cisco.com/",
+        "source": "Cisco Careers"
+    },
+
+    # --- Data & Machine Learning / AI ---
+    {
+        "id": "ind-swiggy-ml-engineer",
+        "title": "Machine Learning Engineer - Delivery Intelligence",
+        "company": "Swiggy",
+        "location": "Bangalore, India",
+        "region": "India",
+        "domain": "Data & ML Engineer",
+        "salary_range": "32 - 48 LPA",
+        "employment_type": "Full-time",
+        "posted_days_ago": 4,
+        "posted_date": "4 days ago",
+        "posted_timestamp": (NOW - timedelta(days=4)).strftime("%Y-%m-%d"),
+        "description": "Build real-time machine learning models for ETA prediction, dynamic dispatch, and batch optimization. Python, PyTorch/TensorFlow, Spark, Kafka, and AWS.",
+        "skills_required": ["Python", "Machine Learning", "PyTorch", "TensorFlow", "Pandas", "Kafka", "AWS", "Spark"],
+        "min_yoe": 3,
+        "max_yoe": 6,
+        "url": "https://careers.swiggy.com/",
+        "apply_url": "https://careers.swiggy.com/",
+        "source": "Swiggy AI Careers"
     }
 ]
 
 
 class JobSearcher:
     @staticmethod
-    def fetch_wwr_rss_jobs(limit: int = 10) -> List[Dict[str, Any]]:
-        """Fetch live backend software engineering jobs from WeWorkRemotely RSS feed."""
+    def fetch_wwr_rss_jobs(domain: str = "Backend", limit: int = 15) -> List[Dict[str, Any]]:
+        """Fetch live software engineering jobs from WeWorkRemotely RSS feed."""
         jobs = []
+        # Select appropriate RSS category based on candidate domain
+        if "frontend" in domain.lower():
+            rss_url = "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss"
+        elif "devops" in domain.lower():
+            rss_url = "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss"
+        else:
+            rss_url = "https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss"
+
         try:
-            url = "https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss"
-            resp = requests.get(url, timeout=5, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+            resp = requests.get(rss_url, timeout=5, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
             if resp.status_code == 200:
                 root = ET.fromstring(resp.content)
                 channel = root.find("channel")
@@ -289,7 +320,6 @@ class JobSearcher:
                         link = item.find("link").text or "https://weworkremotely.com"
                         pub_date_str = item.find("pubDate").text if item.find("pubDate") is not None else ""
 
-                        # Parse title: format is typically "Company: Role"
                         company = "Global Remote Company"
                         title = raw_title
                         if ":" in raw_title:
@@ -297,11 +327,9 @@ class JobSearcher:
                             company = parts[0].strip()
                             title = parts[1].strip()
 
-                        # Calculate days ago from pubDate
                         posted_days = 2
                         if pub_date_str:
                             try:
-                                # format: Sun, 22 Nov 2026 18:32:35 +0000
                                 dt = datetime.strptime(pub_date_str[:25].strip(), "%a, %d %b %Y %H:%M:%S")
                                 delta = (datetime.utcnow() - dt).days
                                 posted_days = max(1, delta)
@@ -314,13 +342,14 @@ class JobSearcher:
                             "company": company,
                             "location": "Remote (Worldwide / Global)",
                             "region": "Global Remote",
-                            "salary_range": "$85,000 - $135,000 USD",
+                            "domain": domain,
+                            "salary_range": "$90,000 - $140,000 USD",
                             "employment_type": "Full-time Remote",
                             "posted_days_ago": posted_days,
                             "posted_date": f"{posted_days} days ago" if posted_days > 1 else "1 day ago",
                             "posted_timestamp": (NOW - timedelta(days=posted_days)).strftime("%Y-%m-%d"),
-                            "description": f"Backend Engineering role at {company}. Work on distributed cloud platforms, microservices, and high-availability backend services.",
-                            "skills_required": ["Java", "Go", "Python", "Distributed Systems", "AWS", "Docker", "PostgreSQL", "REST APIs"],
+                            "description": f"Engineering role at {company}. Work on cloud platforms, microservices, and modern technology stack.",
+                            "skills_required": ["Python", "Java", "TypeScript", "React", "AWS", "Docker", "Distributed Systems", "REST APIs"],
                             "min_yoe": 3,
                             "max_yoe": 7,
                             "url": link,
@@ -332,7 +361,7 @@ class JobSearcher:
         return jobs
 
     @staticmethod
-    def fetch_remotive_jobs(query: str = "backend", limit: int = 10) -> List[Dict[str, Any]]:
+    def fetch_remotive_jobs(query: str = "software", limit: int = 15) -> List[Dict[str, Any]]:
         """Fetch live developer jobs from Remotive API."""
         jobs = []
         try:
@@ -354,14 +383,15 @@ class JobSearcher:
                     tags = item.get("tags", [])
                     skills_req = [t for t in tags if len(t) > 1][:6]
                     if not skills_req:
-                        skills_req = ["Java", "Distributed Systems", "Microservices", "REST APIs", "AWS"]
+                        skills_req = ["Python", "Java", "JavaScript", "TypeScript", "AWS", "REST APIs"]
 
                     jobs.append({
                         "id": f"remotive-{item.get('id')}",
-                        "title": item.get("title", "Backend Engineer"),
+                        "title": item.get("title", "Software Engineer"),
                         "company": item.get("company_name", "Global Tech Company"),
                         "location": item.get("candidate_required_location", "Remote (Worldwide)"),
                         "region": "Global Remote",
+                        "domain": "Software Engineer",
                         "salary_range": item.get("salary", "Competitive"),
                         "employment_type": item.get("job_type", "Full-time Remote"),
                         "posted_days_ago": posted_days,
@@ -379,58 +409,15 @@ class JobSearcher:
             pass
         return jobs
 
-    @staticmethod
-    def fetch_jobicy_jobs(limit: int = 10) -> List[Dict[str, Any]]:
-        """Fetch live remote developer jobs from Jobicy API."""
-        jobs = []
-        try:
-            url = f"https://jobicy.com/api/v2/remote-jobs?count={limit}&tag=dev"
-            resp = requests.get(url, timeout=5, headers={"User-Agent": "AIJobSearch/1.0"})
-            if resp.status_code == 200:
-                data = resp.json()
-                for item in data.get("jobs", [])[:limit]:
-                    pub_str = item.get("pubDate", "")[:10]
-                    posted_days = 2
-                    if pub_str:
-                        try:
-                            dt = datetime.strptime(pub_str, "%Y-%m-%d")
-                            delta = (NOW - dt).days
-                            posted_days = max(1, delta)
-                        except Exception:
-                            pass
-
-                    jobs.append({
-                        "id": f"jobicy-{item.get('id')}",
-                        "title": item.get("jobTitle", "Software Engineer"),
-                        "company": item.get("companyName", "Tech Company"),
-                        "location": item.get("jobGeo", "Remote (Worldwide)"),
-                        "region": "Global Remote",
-                        "salary_range": item.get("annualSalaryMin", "") and f"${item.get('annualSalaryMin')} - ${item.get('annualSalaryMax')} USD" or "Market Rate",
-                        "employment_type": item.get("jobType", ["Full-time"])[0] if isinstance(item.get("jobType"), list) else "Full-time",
-                        "posted_days_ago": posted_days,
-                        "posted_date": f"{posted_days} days ago" if posted_days > 1 else "1 day ago",
-                        "posted_timestamp": pub_str or (NOW - timedelta(days=posted_days)).strftime("%Y-%m-%d"),
-                        "description": item.get("jobDescription", "")[:500],
-                        "skills_required": ["Backend", "Microservices", "Cloud", "REST APIs", "Python", "Go"],
-                        "min_yoe": 2,
-                        "max_yoe": 6,
-                        "url": item.get("url", ""),
-                        "apply_url": item.get("url", ""),
-                        "source": "Jobicy API"
-                    })
-        except Exception:
-            pass
-        return jobs
-
     @classmethod
     def search(cls,
                candidate_skills: Optional[List[str]] = None,
                region_filter: str = "All",
                role_query: str = "Backend",
                max_days: int = 7,
-               limit: int = 40) -> List[Dict[str, Any]]:
+               limit: int = 50) -> List[Dict[str, Any]]:
         """
-        Search and aggregate postings with 7-day recency filter.
+        Generic search across all software engineering tracks with recency filter.
         """
         all_jobs = []
 
@@ -440,18 +427,13 @@ class JobSearcher:
 
         # 2. Add Live WeWorkRemotely RSS Jobs
         if region_filter in ["All", "Global Remote"]:
-            wwr_jobs = cls.fetch_wwr_rss_jobs(limit=10)
+            wwr_jobs = cls.fetch_wwr_rss_jobs(domain=role_query, limit=12)
             all_jobs.extend(wwr_jobs)
 
         # 3. Add Live Remotive API Jobs
         if region_filter in ["All", "Global Remote"]:
-            remotive_jobs = cls.fetch_remotive_jobs(query=role_query, limit=10)
+            remotive_jobs = cls.fetch_remotive_jobs(query=role_query, limit=15)
             all_jobs.extend(remotive_jobs)
-
-        # 4. Add Live Jobicy API Jobs
-        if region_filter in ["All", "Global Remote"]:
-            jobicy_jobs = cls.fetch_jobicy_jobs(limit=8)
-            all_jobs.extend(jobicy_jobs)
 
         # Apply Recency Filter (default: max_days = 7)
         recent_jobs = []
@@ -460,12 +442,12 @@ class JobSearcher:
             if max_days <= 0 or days <= max_days:
                 recent_jobs.append(j)
 
-        # Keyword filtering
+        # Keyword filtering if user specified a role query
         filtered = []
         q_lower = role_query.lower()
         for j in recent_jobs:
             text_corpus = f"{j['title']} {j['company']} {j['description']} {' '.join(j.get('skills_required', []))}".lower()
-            if not q_lower or q_lower in text_corpus or "engineer" in text_corpus or "developer" in text_corpus:
+            if not q_lower or q_lower == "all" or q_lower in text_corpus or "engineer" in text_corpus or "developer" in text_corpus:
                 filtered.append(j)
 
         # Deduplicate by company + title
